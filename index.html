@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lector y Editor PDF</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- PDF.js para Lectura -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- pdf-lib para Edición y Guardado -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+  <style>
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #drawCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      touch-action: none;
+    }
+    body {
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
+
+  <!-- Encabezado / Barra superior -->
+  <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 sticky top-0 z-30 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <i class="fa-solid fa-file-pdf text-red-500 text-2xl"></i>
+      <h1 class="font-bold text-lg text-white">Mi Lector PDF</h1>
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      <label for="pdfInput" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition">
+        <i class="fa-solid fa-folder-open"></i>
+        <span class="hidden sm:inline">Abrir PDF</span>
+      </label>
+      <input type="file" id="pdfInput" accept="application/pdf" class="hidden">
+
+      <button id="downloadBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition opacity-50 cursor-not-allowed" disabled>
+        <i class="fa-solid fa-download"></i>
+        <span class="hidden sm:inline">Guardar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Barra de Herramientas Principal -->
+  <div class="bg-slate-800 border-b border-slate-700 p-2 flex flex-wrap items-center justify-between gap-2 z-20 text-sm">
+    <!-- Controles de Navegación -->
+    <div class="flex items-center space-x-1 bg-slate-900 rounded-lg p-1">
+      <button id="prevPage" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
+      <span class="px-2 text-xs font-semibold text-slate-400">
+        <span id="pageNum">0</span> / <span id="pageCount">0</span>
+      </span>
+      <button id="nextPage" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+
+    <!-- Modos de Edición -->
+    <div class="flex items-center space-x-1 bg-slate-900 rounded-lg p-1">
+      <button id="modeView" class="px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition">
+        <i class="fa-solid fa-hand"></i> Leer
+      </button>
+      <button id="modeDraw" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition">
+        <i class="fa-solid fa-pen"></i> Dibujar
+      </button>
+      <button id="modeText" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition">
+        <i class="fa-solid fa-font"></i> Texto
+      </button>
+    </div>
+
+    <!-- Opciones de Pincel/Color -->
+    <div id="drawTools" class="hidden flex items-center space-x-2 bg-slate-900 rounded-lg p-1">
+      <input type="color" id="drawColor" value="#ef4444" class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent">
+      <select id="drawSize" class="bg-slate-800 text-xs border border-slate-700 rounded px-1 py-1 text-white">
+        <option value="2">Fino</option>
+        <option value="4" selected>Medio</option>
+        <option value="8">Grueso</option>
+      </select>
+      <button id="clearCanvas" class="p-1.5 hover:bg-slate-700 rounded text-red-400 hover:text-red-300" title="Borrar trazos de esta página">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Vista Principal del Documento -->
+  <main class="flex-1 overflow-auto p-4 flex justify-center items-start bg-slate-950 relative" id="viewerContainer">
+    <!-- Pantalla de Bienvenida cuando no hay archivo cargado -->
+    <div id="emptyState" class="text-center my-auto py-12 px-4 max-w-md">
+      <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
+        <i class="fa-solid fa-file-circle-plus text-5xl text-blue-500 mb-4"></i>
+        <h2 class="text-xl font-bold text-white mb-2">Abre un archivo PDF</h2>
+        <p class="text-slate-400 text-sm mb-6">Selecciona un archivo desde la memoria de tu dispositivo o compártelo directamente desde WhatsApp.</p>
+        <label for="pdfInput" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-xl cursor-pointer shadow-lg transition flex items-center space-x-2">
+          <i class="fa-solid fa-folder-open"></i>
+          <span>Buscar PDF</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Contenedor del PDF y Lienzo de Edición -->
+    <div id="pdfWrapper" class="canvas-container hidden">
+      <canvas id="pdfCanvas"></canvas>
+      <canvas id="drawCanvas"></canvas>
+    </div>
+  </main>
+
+  <!-- Lógica JavaScript Principal -->
+  <script>
+    // Inicializar PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Registro del Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('Service Worker registrado correctamente.'))
+        .catch(err => console.error('Error al registrar Service Worker:', err));
+    }
+
+    // Variables de Estado
+    let rawPdfBytes = null;
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let currentScale = 1.3;
+    let currentMode = 'view'; // 'view', 'draw', 'text'
+
+    // Colecciones de Anotaciones por Página
+    const pageDrawings = {}; // { pageNum: [strokes] }
+    const pageTexts = {};    // { pageNum: [textObjects] }
+
+    // Elementos DOM
+    const pdfInput = document.getElementById('pdfInput');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const pdfCtx = pdfCanvas.getContext('2d');
+    const drawCtx = drawCanvas.getContext('2d');
+    const pdfWrapper = document.getElementById('pdfWrapper');
+    const emptyState = document.getElementById('emptyState');
+    const pageNumElem = document.getElementById('pageNum');
+    const pageCountElem = document.getElementById('pageCount');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Botones de Modo
+    const modeView = document.getElementById('modeView');
+    const modeDraw = document.getElementById('modeDraw');
+    const modeText = document.getElementById('modeText');
+    const drawTools = document.getElementById('drawTools');
+
+    // Herramientas de Dibujo
+    const drawColor = document.getElementById('drawColor');
+    const drawSize = document.getElementById('drawSize');
+    const clearCanvasBtn = document.getElementById('clearCanvas');
+
+    // --- CARGA DE ARCHIVO PDF ---
+    pdfInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file && file.type === 'application/pdf') {
+        loadPdfFile(file);
+      }
+    });
+
+    function loadPdfFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        rawPdfBytes = new Uint8Array(evt.target.result);
+        initPdfDocument(rawPdfBytes);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function initPdfDocument(bytes) {
+      pdfjsLib.getDocument({ data: bytes }).promise.then((doc) => {
+        pdfDoc = doc;
+        pageCountElem.textContent = pdfDoc.numPages;
+        pageNum = 1;
+        
+        emptyState.classList.add('hidden');
+        pdfWrapper.classList.remove('hidden');
+        downloadBtn.disabled = false;
+        downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+        renderPage(pageNum);
+      }).catch(err => {
+        alert('Error al abrir el PDF: ' + err.message);
+      });
+    }
+
+    // --- RENDERIZADO DE PÁGINA ---
+    function renderPage(num) {
+      pageRendering = true;
+
+      pdfDoc.getPage(num).then((page) => {
+        const viewport = page.getViewport({ scale: currentScale });
+        
+        // Ajustar Canvas principal
+        pdfCanvas.height = viewport.height;
+        pdfCanvas.width = viewport.width;
+
+        // Ajustar Canvas de dibujo superior
+        drawCanvas.height = viewport.height;
+        drawCanvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: pdfCtx,
+          viewport: viewport
+        };
+
+        const renderTask = page.render(renderContext);
+        renderTask.promise.then(() => {
+          pageRendering = false;
+          if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+          }
+          redrawAnnotations();
+        });
+      });
+
+      pageNumElem.textContent = num;
+    }
+
+    function queueRenderPage(num) {
+      if (pageRendering) {
+        pageNumPending = num;
+      } else {
+        renderPage(num);
+      }
+    }
+
+    document.getElementById('prevPage').addEventListener('click', () => {
+      if (pageNum <= 1) return;
+      pageNum--;
+      queueRenderPage(pageNum);
+    });
+
+    document.getElementById('nextPage').addEventListener('click', () => {
+      if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+      pageNum++;
+      queueRenderPage(pageNum);
+    });
+
+    // --- CONTROL DE MODOS ---
+    function setMode(mode) {
+      currentMode = mode;
+      
+      // Reset estilos
+      [modeView, modeDraw, modeText].forEach(b => {
+        b.className = "px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition";
+      });
+
+      if (mode === 'view') {
+        modeView.className = "px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition";
+        drawCanvas.style.pointerEvents = 'none';
+        drawTools.classList.add('hidden');
+      } else if (mode === 'draw') {
+        modeDraw.className = "px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition";
+        drawCanvas.style.pointerEvents = 'auto';
+        drawTools.classList.remove('hidden');
+      } else if (mode === 'text') {
+        modeText.className = "px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition";
+        drawCanvas.style.pointerEvents = 'auto';
+        drawTools.classList.add('hidden');
+      }
+    }
+
+    modeView.addEventListener('click', () => setMode('view'));
+    modeDraw.addEventListener('click', () => setMode('draw'));
+    modeText.addEventListener('click', () => setMode('text'));
+
+    // --- DIBUJO Y ANOTACIÓN EN CANVAS ---
+    let isDrawing = false;
+    let currentStroke = [];
+
+    function getCanvasCoords(e) {
+      const rect = drawCanvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function startDrawing(e) {
+      if (currentMode === 'text') {
+        addTextAnnotation(e);
+        return;
+      }
+      if (currentMode !== 'draw') return;
+
+      isDrawing = true;
+      const coords = getCanvasCoords(e);
+      currentStroke = [{
+        x: coords.x,
+        y: coords.y,
+        color: drawColor.value,
+        size: parseInt(drawSize.value)
+      }];
+    }
+
+    function draw(e) {
+      if (!isDrawing || currentMode !== 'draw') return;
+      e.preventDefault();
+
+      const coords = getCanvasCoords(e);
+      const point = {
+        x: coords.x,
+        y: coords.y,
+        color: drawColor.value,
+        size: parseInt(drawSize.value)
+      };
+
+      currentStroke.push(point);
+
+      // Dibujar segmento inmediato
+      drawCtx.strokeStyle = point.color;
+      drawCtx.lineWidth = point.size;
+      drawCtx.lineCap = 'round';
+      drawCtx.lineJoin = 'round';
+
+      const prevPoint = currentStroke[currentStroke.length - 2];
+      drawCtx.beginPath();
+      drawCtx.moveTo(prevPoint.x, prevPoint.y);
+      drawCtx.lineTo(point.x, point.y);
+      drawCtx.stroke();
+    }
+
+    function stopDrawing() {
+      if (!isDrawing) return;
+      isDrawing = false;
+      if (currentStroke.length > 0) {
+        if (!pageDrawings[pageNum]) pageDrawings[pageNum] = [];
+        pageDrawings[pageNum].push(currentStroke);
+        currentStroke = [];
+      }
+    }
+
+    // Eventos Táctiles y Mouse
+    drawCanvas.addEventListener('mousedown', startDrawing);
+    drawCanvas.addEventListener('mousemove', draw);
+    drawCanvas.addEventListener('mouseup', stopDrawing);
+
+    drawCanvas.addEventListener('touchstart', startDrawing);
+    drawCanvas.addEventListener('touchmove', draw);
+    drawCanvas.addEventListener('touchend', stopDrawing);
+
+    // --- AGREGAR TEXTO ---
+    function addTextAnnotation(e) {
+      const coords = getCanvasCoords(e);
+      const text = prompt('Ingrese el texto que desea agregar:');
+      if (text && text.trim() !== '') {
+        if (!pageTexts[pageNum]) pageTexts[pageNum] = [];
+        pageTexts[pageNum].push({
+          x: coords.x,
+          y: coords.y,
+          text: text.trim(),
+          color: drawColor.value,
+          size: 16
+        });
+        redrawAnnotations();
+      }
+    }
+
+    // --- RE-DIBUJAR ANOTACIONES GUARDADAS EN PÁGINA ---
+    function redrawAnnotations() {
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+      // Re-dibujar trazos
+      const strokes = pageDrawings[pageNum] || [];
+      strokes.forEach(stroke => {
+        if (stroke.length < 2) return;
+        drawCtx.strokeStyle = stroke[0].color;
+        drawCtx.lineWidth = stroke[0].size;
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+
+        drawCtx.beginPath();
+        drawCtx.moveTo(stroke[0].x, stroke[0].y);
+        for (let i = 1; i < stroke.length; i++) {
+          drawCtx.lineTo(stroke[i].x, stroke[i].y);
+        }
+        drawCtx.stroke();
+      });
+
+      // Re-dibujar textos
+      const texts = pageTexts[pageNum] || [];
+      texts.forEach(item => {
+        drawCtx.font = `${item.size}px sans-serif`;
+        drawCtx.fillStyle = item.color;
+        drawCtx.fillText(item.text, item.x, item.y);
+      });
+    }
+
+    clearCanvasBtn.addEventListener('click', () => {
+      if (confirm('¿Desea borrar las anotaciones de esta página?')) {
+        pageDrawings[pageNum] = [];
+        pageTexts[pageNum] = [];
+        redrawAnnotations();
+      }
+    });
+
+    // --- GUARDAR Y EXPORTAR PDF EDICIÓN CON PDF-LIB ---
+    downloadBtn.addEventListener('click', async () => {
+      if (!rawPdfBytes) return;
+
+      downloadBtn.textContent = 'Guardando...';
+      downloadBtn.disabled = true;
+
+      try {
+        const { PDFDocument, rgb } = PDFLib;
+        const pdfDocEdit = await PDFDocument.load(rawPdfBytes);
+        const pages = pdfDocEdit.getPages();
+
+        for (let i = 0; i < pages.length; i++) {
+          const currentPageNum = i + 1;
+          const page = pages[i];
+          const { width, height } = page.getSize();
+
+          // Relación de escala entre el canvas de la PWA y las dimensiones reales del PDF
+          const scaleX = width / pdfCanvas.width;
+          const scaleY = height / pdfCanvas.height;
+
+          // Incrustar trazos
+          const strokes = pageDrawings[currentPageNum] || [];
+          strokes.forEach(stroke => {
+            for (let j = 0; j < stroke.length - 1; j++) {
+              const p1 = stroke[j];
+              const p2 = stroke[j + 1];
+
+              // Convertir color Hex a RGB pdf-lib
+              const hex = p1.color.replace('#', '');
+              const r = parseInt(hex.substring(0, 2), 16) / 255;
+              const g = parseInt(hex.substring(2, 4), 16) / 255;
+              const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+              page.drawLine({
+                start: { x: p1.x * scaleX, y: height - (p1.y * scaleY) },
+                end: { x: p2.x * scaleX, y: height - (p2.y * scaleY) },
+                thickness: p1.size * scaleX,
+                color: rgb(r, g, b),
+                opacity: 0.8
+              });
+            }
+          });
+
+          // Incrustar textos
+          const texts = pageTexts[currentPageNum] || [];
+          texts.forEach(item => {
+            const hex = item.color.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16) / 255;
+            const g = parseInt(hex.substring(2, 4), 16) / 255;
+            const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+            page.drawText(item.text, {
+              x: item.x * scaleX,
+              y: height - (item.y * scaleY),
+              size: item.size * scaleX,
+              color: rgb(r, g, b)
+            });
+          });
+        }
+
+        const modifiedPdfBytes = await pdfDocEdit.save();
+        const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'documento_editado.pdf';
+        link.click();
+
+      } catch (err) {
+        alert('Ocurrió un error al exportar el PDF: ' + err.message);
+      } finally {
+        downloadBtn.innerHTML = '<i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Guardar</span>';
+        downloadBtn.disabled = false;
+      }
+    });
+
+    // Escuchar archivos compartidos desde el Service Worker (ej. WhatsApp)
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.file) {
+        loadPdfFile(event.data.file);
+      }
+    });
+  </script>
+</body>
+</html>
