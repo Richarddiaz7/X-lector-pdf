@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover">
   <title>Súper Lector y Editor PDF</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
@@ -330,20 +330,14 @@
 
     // COORDENADAS DEL LÁPIZ (Ajustadas para la escala CSS)
     let isDrawing = false, currentStroke = [];
-    function getCanvasCoords(e) {
+        function getCanvasCoords(e) {
       const rect = drawCanvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      
       const scaleX = drawCanvas.width / rect.width;
       const scaleY = drawCanvas.height / rect.height;
-      
-      return { 
-        x: (clientX - rect.left) * scaleX, 
-        y: (clientY - rect.top) * scaleY 
-      };
+      return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
-
     function startDraw(e) {
       if (state.currentMode === 'text') { addTextAt(e); return; }
       if (state.currentMode !== 'draw') return;
@@ -531,16 +525,44 @@
 
     function startVoice() {
       if (!SpeechRecognition) return;
-      recognition = new SpeechRecognition(); recognition.lang = 'es-ES'; recognition.continuous = true; recognition.interimResults = true;
+      recognition = new SpeechRecognition(); 
+      recognition.lang = 'es-VE'; // Español de Venezuela para mejor acento
+      recognition.continuous = true; 
+      recognition.interimResults = true;
+      
       let finalT = voiceText.textContent;
-      recognition.onstart = () => { voiceActive = true; voiceStatus.textContent = 'Escuchando...'; voiceStartBtn.classList.add('hidden'); voiceStopBtn.classList.remove('hidden'); };
+      
+      recognition.onstart = () => { 
+        voiceActive = true; 
+        voiceStatus.textContent = 'Escuchando... Habla claro y pausado.'; 
+        voiceStartBtn.classList.add('hidden'); 
+        voiceStopBtn.classList.remove('hidden'); 
+      };
+      
       recognition.onresult = (e) => {
         let interim = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) finalT += t + ' '; else interim += t; }
+        for (let i = e.resultIndex; i < e.results.length; i++) { 
+          const t = e.results[i][0].transcript; 
+          if (e.results[i].isFinal) {
+            finalT += t + ' '; 
+          } else {
+            interim += t; 
+          }
+        }
         voiceText.textContent = finalT + interim;
       };
-      recognition.onerror = (e) => { voiceStatus.textContent = 'Error: ' + e.error; stopVoice(); };
-      recognition.onend = () => { voiceActive = false; voiceStartBtn.classList.remove('hidden'); voiceStopBtn.classList.add('hidden'); };
+      
+      recognition.onerror = (e) => { 
+        voiceStatus.textContent = 'Error: ' + e.error + '. Asegúrate de tener internet.'; 
+        stopVoice(); 
+      };
+      
+      recognition.onend = () => { 
+        voiceActive = false; 
+        voiceStartBtn.classList.remove('hidden'); 
+        voiceStopBtn.classList.add('hidden'); 
+      };
+      
       recognition.start();
     }
     function stopVoice() { if (recognition && voiceActive) recognition.stop(); }
@@ -698,9 +720,20 @@
       convertModal.classList.add('hidden');
     });
 
-    document.querySelectorAll('[data-convert]').forEach(btn => {
+        document.querySelectorAll('[data-convert]').forEach(btn => {
       btn.addEventListener('click', () => {
-        window.open('https://pdfto.tools', '_blank');
+        // 1. Descargamos el PDF primero
+        if (state.rawPdfBytes) {
+          const blob = new Blob([state.rawPdfBytes], { type: 'application/pdf' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'documento_para_convertir.pdf';
+          link.click();
+        }
+        // 2. Abrimos la web para que el usuario lo suba
+        setTimeout(() => {
+          window.open('https://pdfto.tools', '_blank');
+        }, 1000);
         convertModal.classList.add('hidden');
       });
     });
