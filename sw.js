@@ -1,8 +1,10 @@
-const CACHE_NAME = 'pdf-reader-v1';
+const CACHE_NAME = 'pdf-reader-v3';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
   'https://cdn.tailwindcss.com',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
@@ -15,9 +17,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS).catch((err) => {
-        console.warn('Algunos recursos no se cachearon (posible falta de red):', err);
-      });
+      return cache.addAll(ASSETS).catch((err) => console.warn('Cache parcial:', err));
     })
   );
 });
@@ -33,27 +33,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: cache-first para recursos, network-first para navegación
+// Fetch: interceptar peticiones
 self.addEventListener('fetch', (event) => {
-  // Manejo especial del POST de WhatsApp (share_target)
+  // IMPORTANTE: Manejar POST (WhatsApp) antes de cualquier otra cosa
   if (event.request.method === 'POST') {
     event.respondWith(handleShareTarget(event));
     return;
   }
 
-  // Para el resto: cache-first con fallback a red
+  // Solo cachear peticiones GET a http/https
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((response) => {
-        // Cachear recursos nuevos que se soliciten
         if (response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       }).catch(() => {
-        // Si falla la red y es navegación, devolver index.html cacheado
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }
@@ -68,21 +70,17 @@ async function handleShareTarget(event) {
     const formData = await event.request.formData();
     const pdfFile = formData.get('pdf_file');
 
-    if (!pdfFile) {
-      return Response.redirect('./index.html?error=nofile', 303);
-    }
+    if (!pdfFile) return Response.redirect('./index.html?error=nofile', 303);
 
     // Guardar el archivo en IndexedDB temporalmente
     const db = await openDB();
     await saveFileToDB(db, pdfFile);
 
-    // Avisar a todas las ventanas abiertas
     const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clientList) {
       client.postMessage({ type: 'SHARE_PDF', hasFile: true });
     }
 
-    // Si no hay ventana, abrir una
     if (clientList.length === 0) {
       await self.clients.openWindow('./index.html?shared=1');
     }
