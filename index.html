@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Súper Lector y Editor PDF</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
@@ -18,42 +18,40 @@
     html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
     body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
-    /* VISOR PRINCIPAL */
+    /* VISOR PRINCIPAL CON SCROLL */
     #viewerContainer { 
       position: relative; 
-      overflow: auto; 
+      overflow: auto; /* Permite desplazarse hacia abajo */
       background: #020617;
       flex: 1; 
       width: 100%;
       height: 100%;
-      -webkit-overflow-scrolling: touch;
+      -webkit-overflow-scrolling: touch; /* Desplazamiento suave en iOS */
     }
 
-    /* CONTENEDOR DEL PDF */
+    /* EL CONTENEDOR DEL PDF */
     #pdfWrapper { 
       display: none; 
-      position: relative; 
       margin: 15px auto; 
-      padding: 0;
-      width: 95%; 
-      max-width: 900px;
+      width: 98%; /* Ocupa casi todo el ancho de la pantalla */
+      max-width: 1000px;
     }
-    
     #pdfWrapper.loaded { 
       display: block; 
     }
 
+    /* EL LIENZO DONDE SE DIBUJA EL PDF */
     .canvas-container { 
       position: relative; 
       display: block; 
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
-      border-radius: 6px; 
-      overflow: hidden; 
-      background: white; 
       width: 100%; 
+      background: white;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
+      border-radius: 4px;
+      overflow: hidden;
     }
     
-    /* CANVAS ADAPTABLES AL ANCHO */
+    /* EL TRUCO MAESTRO: CSS obliga a los canvas a medir el 100% de ancho */
     #pdfCanvas { 
       display: block; 
       width: 100% !important; 
@@ -71,6 +69,7 @@
     }
     #drawCanvas.active { pointer-events: auto; }
 
+    /* Elementos flotantes (texto e imágenes) */
     .floating-item { position: absolute; cursor: move; user-select: none; touch-action: none; z-index: 5; }
     .floating-item.selected { outline: 2px dashed #3b82f6; outline-offset: 2px; }
     .floating-text { padding: 2px 4px; min-width: 20px; white-space: pre-wrap; font-size: 16px; line-height: 1.2; border-radius: 3px; }
@@ -87,7 +86,6 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col select-none">
@@ -162,6 +160,7 @@
         </label>
       </div>
     </div>
+    
     <div id="pdfWrapper">
       <div class="canvas-container"><canvas id="pdfCanvas"></canvas><canvas id="drawCanvas"></canvas></div>
     </div>
@@ -202,13 +201,14 @@
 
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(err => console.error('SW error:', err));
     }
 
     const state = {
       rawPdfBytes: null, pdfDoc: null, pageNum: 1, pageCount: 0,
-      zoom: 1.0, panX: 0, panY: 0,
+      zoom: 1.0,
       currentMode: 'view', rendering: false, pendingPage: null,
       pageDrawings: {}, pageTexts: {}, pageImages: {}, pageRotations: {}, deletedPages: new Set(),
       selectedItem: null
@@ -231,17 +231,12 @@
 
     function loadPdfFile(file) {
       if (!file) return;
-      if (file.arrayBuffer) {
-        file.arrayBuffer().then((buffer) => {
-          state.rawPdfBytes = new Uint8Array(buffer);
-          initPdfDocument(state.rawPdfBytes);
-        }).catch((err) => alert('Error al leer archivo: ' + err.message));
-      } else {
-        const reader = new FileReader();
-        reader.onload = (evt) => { state.rawPdfBytes = new Uint8Array(evt.target.result); initPdfDocument(state.rawPdfBytes); };
-        reader.onerror = () => alert('Error de lectura');
-        reader.readAsArrayBuffer(file);
-      }
+      const reader = new FileReader();
+      reader.onload = (evt) => { 
+        state.rawPdfBytes = new Uint8Array(evt.target.result); 
+        initPdfDocument(state.rawPdfBytes); 
+      };
+      reader.readAsArrayBuffer(file);
     }
 
     function initPdfDocument(bytes) {
@@ -260,35 +255,34 @@
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
-    // RENDERIZADO ADAPTABLE AL ANCHO DEL CELULAR
+    // FUNCIÓN DE RENDERIZADO SIMPLIFICADA AL MÁXIMO
     function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
+      
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
-        const viewport = page.getViewport({ scale: 1, rotation: rotation });
+        const viewport = page.getViewport({ scale: 2.0, rotation: rotation }); // Escala 2.0 da buena calidad
         
-        // Resolución fija interna alta (1200px de ancho)
-        const renderScale = 1200 / viewport.width;
+        // El canvas interno tiene su tamaño natural
+        pdfCanvas.width = viewport.width;
+        pdfCanvas.height = viewport.height;
         
-        pdfCanvas.width = Math.floor(viewport.width * renderScale);
-        pdfCanvas.height = Math.floor(viewport.height * renderScale);
-        drawCanvas.width = Math.floor(viewport.width * renderScale);
-        drawCanvas.height = Math.floor(viewport.height * renderScale);
-
-        // Escalar el lienzo interno
-        pdfCtx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-        drawCtx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+        drawCanvas.width = viewport.width;
+        drawCanvas.height = viewport.height;
 
         const renderContext = {
           canvasContext: pdfCtx,
-          viewport: viewport,
-          transform: [renderScale, 0, 0, renderScale, 0, 0]
+          viewport: viewport
         };
 
         page.render(renderContext).promise.then(() => {
           state.rendering = false;
-          if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
+          if (state.pendingPage !== null) { 
+            const next = state.pendingPage; 
+            state.pendingPage = null; 
+            renderPage(next); 
+          }
           redrawAllAnnotations();
           viewerContainer.scrollTop = 0; 
         });
@@ -304,12 +298,12 @@
     $('prevPage').addEventListener('click', () => { if (state.pageNum > 1) { state.pageNum--; queueRenderPage(state.pageNum); } });
     $('nextPage').addEventListener('click', () => { if (state.pdfDoc && state.pageNum < state.pageCount) { state.pageNum++; queueRenderPage(state.pageNum); } });
 
-    // ZOOM BÁSICO (Los botones ajustan el tamaño del contenedor)
-    function applyTransform() {
-      pdfWrapper.style.transform = `scale(${state.zoom})`;
-      pdfWrapper.style.transformOrigin = 'top center';
+    // BOTONES DE ZOOM (Afectan el ancho visual de la hoja)
+    function updateZoom() {
+      pdfWrapper.style.width = (98 * state.zoom) + '%';
       zoomLevelElem.textContent = Math.round(state.zoom * 100) + '%';
       zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
+      showZoomBadge();
     }
 
     function showZoomBadge() {
@@ -318,14 +312,9 @@
       showZoomBadge._t = setTimeout(() => zoomBadge.classList.remove('show'), 1200);
     }
 
-    function zoomAt(factor) {
-      state.zoom = Math.min(Math.max(state.zoom * factor, 0.5), 5.0);
-      applyTransform(); showZoomBadge();
-    }
-
-    $('zoomIn').addEventListener('click', () => zoomAt(1.25));
-    $('zoomOut').addEventListener('click', () => zoomAt(0.8));
-    $('zoomReset').addEventListener('click', () => { state.zoom = 1.0; applyTransform(); });
+    $('zoomIn').addEventListener('click', () => { state.zoom = Math.min(state.zoom + 0.2, 3.0); updateZoom(); });
+    $('zoomOut').addEventListener('click', () => { state.zoom = Math.max(state.zoom - 0.2, 0.5); updateZoom(); });
+    $('zoomReset').addEventListener('click', () => { state.zoom = 1.0; updateZoom(); });
 
     function setMode(mode) {
       state.currentMode = mode;
@@ -339,9 +328,8 @@
     modeButtons.draw.addEventListener('click', () => setMode('draw'));
     modeButtons.text.addEventListener('click', () => setMode('text'));
 
+    // COORDENADAS DEL LÁPIZ (Ajustadas para la escala CSS)
     let isDrawing = false, currentStroke = [];
-    
-    // COORDENADAS CORREGIDAS PARA QUE EL LÁPIZ CAIGA EXACTO
     function getCanvasCoords(e) {
       const rect = drawCanvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -361,18 +349,20 @@
       if (state.currentMode !== 'draw') return;
       e.preventDefault(); isDrawing = true;
       const c = getCanvasCoords(e);
-      currentStroke = [{ x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) }];
+      currentStroke = [{ x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) * 2 }]; // Grosor ajustado x2
     }
+    
     function moveDraw(e) {
       if (!isDrawing || state.currentMode !== 'draw') return;
       e.preventDefault();
       const c = getCanvasCoords(e);
-      const point = { x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) };
+      const point = { x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) * 2 };
       currentStroke.push(point);
       drawCtx.strokeStyle = point.color; drawCtx.lineWidth = point.size; drawCtx.lineCap = 'round'; drawCtx.lineJoin = 'round';
       const prev = currentStroke[currentStroke.length - 2];
       drawCtx.beginPath(); drawCtx.moveTo(prev.x, prev.y); drawCtx.lineTo(point.x, point.y); drawCtx.stroke();
     }
+    
     function endDraw() {
       if (!isDrawing) return; isDrawing = false;
       if (currentStroke.length > 0) { (state.pageDrawings[state.pageNum] = state.pageDrawings[state.pageNum] || []).push(currentStroke); currentStroke = []; }
@@ -380,6 +370,7 @@
     drawCanvas.addEventListener('mousedown', startDraw); drawCanvas.addEventListener('mousemove', moveDraw); drawCanvas.addEventListener('mouseup', endDraw); drawCanvas.addEventListener('mouseleave', endDraw);
     drawCanvas.addEventListener('touchstart', startDraw, { passive: false }); drawCanvas.addEventListener('touchmove', moveDraw, { passive: false }); drawCanvas.addEventListener('touchend', endDraw);
 
+    // TEXTOS E IMÁGENES
     let textCounter = 0, imgCounter = 0;
     function addTextAt(e) {
       const rect = drawCanvas.getBoundingClientRect();
@@ -391,18 +382,18 @@
       const scaleX = drawCanvas.width / rect.width;
       const scaleY = drawCanvas.height / rect.height;
       
-      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY, text: text.trim(), color: drawColor.value, size: 24 };
+      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY, text: text.trim(), color: drawColor.value, size: 32 };
       (state.pageTexts[state.pageNum] = state.pageTexts[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
     function addTextFromVoice(text) {
       if (!text || !text.trim()) return;
-      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: 40, y: 40, text: text.trim(), color: drawColor.value, size: 24 };
+      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: 40, y: 40, text: text.trim(), color: drawColor.value, size: 32 };
       (state.pageTexts[state.pageNum] = state.pageTexts[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
     function addImageFromDataUrl(dataUrl, w, h) {
-      const item = { id: 'img_' + (++imgCounter) + '_' + Date.now(), type: 'image', x: 40, y: 40, width: w || 200, height: h || 200, src: dataUrl };
+      const item = { id: 'img_' + (++imgCounter) + '_' + Date.now(), type: 'image', x: 40, y: 40, width: w * 2 || 400, height: h * 2 || 400, src: dataUrl };
       (state.pageImages[state.pageNum] = state.pageImages[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
@@ -423,7 +414,6 @@
       pdfWrapper.querySelectorAll('.floating-item').forEach(el => el.remove());
       const container = pdfWrapper.querySelector('.canvas-container');
       
-      // Calculamos la proporción del CSS para que el texto flote bien
       const rect = pdfCanvas.getBoundingClientRect();
       const scaleX = rect.width / pdfCanvas.width;
       const scaleY = rect.height / pdfCanvas.height;
@@ -583,7 +573,6 @@
       if (!state.pdfDoc) { alert('Abre un PDF primero.'); return; }
       const temp = document.createElement('canvas'); temp.width = pdfCanvas.width; temp.height = pdfCanvas.height;
       const tctx = temp.getContext('2d'); tctx.drawImage(pdfCanvas, 0, 0); tctx.drawImage(drawCanvas, 0, 0);
-      const renderScale = pdfCanvas.width / pdfCanvas.getBoundingClientRect().width;
       
       (state.pageTexts[state.pageNum] || []).forEach(item => { 
         tctx.font = `${item.size}px sans-serif`; 
@@ -622,25 +611,23 @@
         const pdfDocEdit = await PDFDocument.load(state.rawPdfBytes, { ignoreEncryption: true });
         const pages = pdfDocEdit.getPages();
         
-        const viewport = await state.pdfDoc.getPage(1).then(p => p.getViewport({ scale: 1 }));
-        const sx = 1 / 1200; 
-
         for (let i = 0; i < pages.length; i++) {
           const pNum = i + 1; const page = pages[i]; const { width, height } = page.getSize();
           const pdfPage = await state.pdfDoc.getPage(pNum);
-          const vp = pdfPage.getViewport({ scale: 1, rotation: state.pageRotations[pNum] || 0 });
+          const rotation = state.pageRotations[pNum] || 0;
+          const vp = pdfPage.getViewport({ scale: 2.0, rotation }); // Misma escala usada al renderizar
+          
           const scaleX = width / vp.width;
           const scaleY = height / vp.height;
-          const renderScale = 1200 / vp.width;
 
           (state.pageDrawings[pNum] || []).forEach(stroke => {
             for (let j = 0; j < stroke.length - 1; j++) {
               const p1 = stroke[j], p2 = stroke[j+1];
               const hex = p1.color.replace('#', '');
               page.drawLine({ 
-                start: { x: (p1.x / renderScale) * scaleX, y: height - ((p1.y / renderScale) * scaleY) }, 
-                end: { x: (p2.x / renderScale) * scaleX, y: height - ((p2.y / renderScale) * scaleY) }, 
-                thickness: (p1.size / renderScale) * scaleX, 
+                start: { x: p1.x * scaleX, y: height - (p1.y * scaleY) }, 
+                end: { x: p2.x * scaleX, y: height - (p2.y * scaleY) }, 
+                thickness: p1.size * scaleX, 
                 color: rgb(parseInt(hex.substring(0,2),16)/255, parseInt(hex.substring(2,4),16)/255, parseInt(hex.substring(4,6),16)/255), 
                 opacity: 0.9 
               });
@@ -650,9 +637,9 @@
           (state.pageTexts[pNum] || []).forEach(item => {
             const hex = item.color.replace('#', '');
             page.drawText(item.text, { 
-              x: (item.x / renderScale) * scaleX, 
-              y: height - ((item.y / renderScale) * scaleY) - (item.size / renderScale) * scaleY, 
-              size: (item.size / renderScale) * scaleY, 
+              x: item.x * scaleX, 
+              y: height - (item.y * scaleY) - item.size * scaleY, 
+              size: item.size * scaleY, 
               color: rgb(parseInt(hex.substring(0,2),16)/255, parseInt(hex.substring(2,4),16)/255, parseInt(hex.substring(4,6),16)/255) 
             });
           });
@@ -662,10 +649,10 @@
               const bytes = await fetch(item.src).then(r => r.arrayBuffer());
               const emb = item.src.startsWith('data:image/png') ? await pdfDocEdit.embedPng(bytes) : await pdfDocEdit.embedJpg(bytes);
               page.drawImage(emb, { 
-                x: (item.x / renderScale) * scaleX, 
-                y: height - ((item.y / renderScale) * scaleY) - ((item.height / renderScale) * scaleY), 
-                width: (item.width / renderScale) * scaleX, 
-                height: (item.height / renderScale) * scaleY 
+                x: item.x * scaleX, 
+                y: height - (item.y + item.height) * scaleY, 
+                width: item.width * scaleX, 
+                height: item.height * scaleY 
               });
             } catch (e) { console.warn('Img skip:', e); }
           }
