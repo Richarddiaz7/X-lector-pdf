@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Súper Lector y Editor PDF</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
@@ -19,19 +19,24 @@
     body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
     /* VISOR PRINCIPAL */
-     #viewerContainer { 
+    #viewerContainer { 
       position: relative; 
       overflow: auto; 
       background: #020617;
       flex: 1; 
       width: 100%;
       height: 100%;
+      -webkit-overflow-scrolling: touch;
     }
 
+    /* CONTENEDOR DEL PDF */
     #pdfWrapper { 
       display: none; 
-      margin: 10px auto; 
-      width: 95%; /* Se adapta al 95% de la pantalla */
+      position: relative; 
+      margin: 15px auto; 
+      padding: 0;
+      width: 95%; 
+      max-width: 900px;
     }
     
     #pdfWrapper.loaded { 
@@ -41,19 +46,29 @@
     .canvas-container { 
       position: relative; 
       display: block; 
-      width: 100%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); 
+      border-radius: 6px; 
+      overflow: hidden; 
       background: white; 
+      width: 100%; 
     }
     
+    /* CANVAS ADAPTABLES AL ANCHO */
     #pdfCanvas { 
       display: block; 
-      width: 100% !important; /* OBLIGA al PDF a usar todo el ancho */
+      width: 100% !important; 
       height: auto !important; 
     }
     
-    /* EL TRUCO: Las canvas se adaptan al 100% del ancho y mantienen la proporción */
-    #pdfCanvas { display: block; width: 100% !important; height: auto !important; }
-    #drawCanvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: none; touch-action: none; }
+    #drawCanvas { 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100% !important; 
+      height: 100% !important; 
+      pointer-events: none; 
+      touch-action: none; 
+    }
     #drawCanvas.active { pointer-events: auto; }
 
     .floating-item { position: absolute; cursor: move; user-select: none; touch-action: none; z-index: 5; }
@@ -193,7 +208,7 @@
 
     const state = {
       rawPdfBytes: null, pdfDoc: null, pageNum: 1, pageCount: 0,
-      zoom: 1.0, panX: 0, panY: 0, // Conservamos el estado para no romper otras funciones
+      zoom: 1.0, panX: 0, panY: 0,
       currentMode: 'view', rendering: false, pendingPage: null,
       pageDrawings: {}, pageTexts: {}, pageImages: {}, pageRotations: {}, deletedPages: new Set(),
       selectedItem: null
@@ -238,43 +253,44 @@
         state.deletedPages = new Set();
         pageCountElem.textContent = doc.numPages;
         emptyState.classList.add('hidden');
-        pdfWrapper.classList.add('loaded'); // Mostrar contenedor
+        pdfWrapper.classList.add('loaded'); 
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         renderPage(state.pageNum);
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
-    // RENDERIZADO NUEVO (Basado en ancho de pantalla)
-      function renderPage(num) {
+    // RENDERIZADO ADAPTABLE AL ANCHO DEL CELULAR
+    function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
         const viewport = page.getViewport({ scale: 1, rotation: rotation });
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        
+        // Resolución fija interna alta (1200px de ancho)
+        const renderScale = 1200 / viewport.width;
+        
+        pdfCanvas.width = Math.floor(viewport.width * renderScale);
+        pdfCanvas.height = Math.floor(viewport.height * renderScale);
+        drawCanvas.width = Math.floor(viewport.width * renderScale);
+        drawCanvas.height = Math.floor(viewport.height * renderScale);
 
-        // El canvas interno tendrá una resolución buena (basada en dpr)
-        pdfCanvas.width = Math.floor(viewport.width * dpr);
-        pdfCanvas.height = Math.floor(viewport.height * dpr);
-
-        drawCanvas.width = Math.floor(viewport.width * dpr);
-        drawCanvas.height = Math.floor(viewport.height * dpr);
-
-        pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        // Escalar el lienzo interno
+        pdfCtx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+        drawCtx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
 
         const renderContext = {
           canvasContext: pdfCtx,
           viewport: viewport,
-          transform: [dpr, 0, 0, dpr, 0, 0]
+          transform: [renderScale, 0, 0, renderScale, 0, 0]
         };
 
         page.render(renderContext).promise.then(() => {
           state.rendering = false;
           if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
           redrawAllAnnotations();
-          viewerContainer.scrollTop = 0; // Reiniciar scroll al cargar
+          viewerContainer.scrollTop = 0; 
         });
       });
       pageNumElem.textContent = num;
@@ -288,10 +304,10 @@
     $('prevPage').addEventListener('click', () => { if (state.pageNum > 1) { state.pageNum--; queueRenderPage(state.pageNum); } });
     $('nextPage').addEventListener('click', () => { if (state.pdfDoc && state.pageNum < state.pageCount) { state.pageNum++; queueRenderPage(state.pageNum); } });
 
-    // Mantenemos esto para que no fallen los botones de zoom, pero ahora afectan al CSS scale
+    // ZOOM BÁSICO (Los botones ajustan el tamaño del contenedor)
     function applyTransform() {
       pdfWrapper.style.transform = `scale(${state.zoom})`;
-      pdfWrapper.style.transformOrigin = 'top left';
+      pdfWrapper.style.transformOrigin = 'top center';
       zoomLevelElem.textContent = Math.round(state.zoom * 100) + '%';
       zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
     }
@@ -324,13 +340,22 @@
     modeButtons.text.addEventListener('click', () => setMode('text'));
 
     let isDrawing = false, currentStroke = [];
+    
+    // COORDENADAS CORREGIDAS PARA QUE EL LÁPIZ CAIGA EXACTO
     function getCanvasCoords(e) {
       const rect = drawCanvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      return { x: (clientX - rect.left) * (drawCanvas.width / rect.width) / dpr, y: (clientY - rect.top) * (drawCanvas.height / rect.height) / dpr };
+      
+      const scaleX = drawCanvas.width / rect.width;
+      const scaleY = drawCanvas.height / rect.height;
+      
+      return { 
+        x: (clientX - rect.left) * scaleX, 
+        y: (clientY - rect.top) * scaleY 
+      };
     }
+
     function startDraw(e) {
       if (state.currentMode === 'text') { addTextAt(e); return; }
       if (state.currentMode !== 'draw') return;
@@ -362,13 +387,17 @@
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       const text = prompt('Ingrese el texto:');
       if (!text || !text.trim()) return;
-      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: clientX - rect.left, y: clientY - rect.top, text: text.trim(), color: drawColor.value, size: 16 };
+      
+      const scaleX = drawCanvas.width / rect.width;
+      const scaleY = drawCanvas.height / rect.height;
+      
+      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY, text: text.trim(), color: drawColor.value, size: 24 };
       (state.pageTexts[state.pageNum] = state.pageTexts[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
     function addTextFromVoice(text) {
       if (!text || !text.trim()) return;
-      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: 40, y: 40, text: text.trim(), color: drawColor.value, size: 16 };
+      const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: 40, y: 40, text: text.trim(), color: drawColor.value, size: 24 };
       (state.pageTexts[state.pageNum] = state.pageTexts[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
@@ -393,20 +422,32 @@
     function renderFloatingItems() {
       pdfWrapper.querySelectorAll('.floating-item').forEach(el => el.remove());
       const container = pdfWrapper.querySelector('.canvas-container');
+      
+      // Calculamos la proporción del CSS para que el texto flote bien
+      const rect = pdfCanvas.getBoundingClientRect();
+      const scaleX = rect.width / pdfCanvas.width;
+      const scaleY = rect.height / pdfCanvas.height;
+
       (state.pageTexts[state.pageNum] || []).forEach(item => {
         const el = document.createElement('div');
         el.className = 'floating-item floating-text' + (state.selectedItem === item.id ? ' selected' : '');
         el.dataset.id = item.id; el.dataset.type = 'text';
-        el.style.left = item.x + 'px'; el.style.top = item.y + 'px';
-        el.style.color = item.color; el.style.fontSize = item.size + 'px'; el.textContent = item.text;
+        el.style.left = (item.x * scaleX) + 'px'; 
+        el.style.top = (item.y * scaleY) + 'px';
+        el.style.color = item.color; 
+        el.style.fontSize = (item.size * scaleY) + 'px'; 
+        el.textContent = item.text;
         container.appendChild(el); attachItemHandlers(el, item);
       });
+      
       (state.pageImages[state.pageNum] || []).forEach(item => {
         const el = document.createElement('div');
         el.className = 'floating-item floating-img' + (state.selectedItem === item.id ? ' selected' : '');
         el.dataset.id = item.id; el.dataset.type = 'image';
-        el.style.left = item.x + 'px'; el.style.top = item.y + 'px';
-        el.style.width = item.width + 'px'; el.style.height = item.height + 'px';
+        el.style.left = (item.x * scaleX) + 'px'; 
+        el.style.top = (item.y * scaleY) + 'px';
+        el.style.width = (item.width * scaleX) + 'px'; 
+        el.style.height = (item.height * scaleY) + 'px';
         const img = document.createElement('img');
         img.src = item.src; img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain';
         el.appendChild(img); container.appendChild(el); attachItemHandlers(el, item);
@@ -425,8 +466,16 @@
       const onMove = (e) => {
         if (!dragging) return; e.preventDefault();
         const p = e.touches ? e.touches[0] : e;
-        item.x = ox + (p.clientX - sx) / state.zoom; item.y = oy + (p.clientY - sy) / state.zoom;
-        el.style.left = item.x + 'px'; el.style.top = item.y + 'px';
+        
+        const rect = pdfCanvas.getBoundingClientRect();
+        const scaleX = rect.width / pdfCanvas.width;
+        const scaleY = rect.height / pdfCanvas.height;
+
+        item.x = ox + (p.clientX - sx) / scaleX; 
+        item.y = oy + (p.clientY - sy) / scaleY;
+        
+        el.style.left = (item.x * scaleX) + 'px'; 
+        el.style.top = (item.y * scaleY) + 'px';
       };
       const onEnd = () => { dragging = false; };
       el.addEventListener('mousedown', onStart); el.addEventListener('touchstart', onStart, { passive: false });
@@ -534,11 +583,18 @@
       if (!state.pdfDoc) { alert('Abre un PDF primero.'); return; }
       const temp = document.createElement('canvas'); temp.width = pdfCanvas.width; temp.height = pdfCanvas.height;
       const tctx = temp.getContext('2d'); tctx.drawImage(pdfCanvas, 0, 0); tctx.drawImage(drawCanvas, 0, 0);
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      (state.pageTexts[state.pageNum] || []).forEach(item => { tctx.font = `${item.size * dpr}px sans-serif`; tctx.fillStyle = item.color; tctx.fillText(item.text, item.x * dpr, (item.y + item.size) * dpr); });
+      const renderScale = pdfCanvas.width / pdfCanvas.getBoundingClientRect().width;
+      
+      (state.pageTexts[state.pageNum] || []).forEach(item => { 
+        tctx.font = `${item.size}px sans-serif`; 
+        tctx.fillStyle = item.color; 
+        tctx.fillText(item.text, item.x, item.y + item.size); 
+      });
+      
       const promises = (state.pageImages[state.pageNum] || []).map(item => new Promise(res => {
-        const im = new Image(); im.onload = () => { tctx.drawImage(im, item.x * dpr, item.y * dpr, item.width * dpr, item.height * dpr); res(); }; im.onerror = () => res(); im.src = item.src;
+        const im = new Image(); im.onload = () => { tctx.drawImage(im, item.x, item.y, item.width, item.height); res(); }; im.onerror = () => res(); im.src = item.src;
       }));
+      
       Promise.all(promises).then(() => {
         const link = document.createElement('a'); link.href = temp.toDataURL('image/png'); link.download = `pagina_${state.pageNum}.png`; link.click();
       });
@@ -565,33 +621,59 @@
         const { PDFDocument, rgb, degrees } = PDFLib;
         const pdfDocEdit = await PDFDocument.load(state.rawPdfBytes, { ignoreEncryption: true });
         const pages = pdfDocEdit.getPages();
+        
+        const viewport = await state.pdfDoc.getPage(1).then(p => p.getViewport({ scale: 1 }));
+        const sx = 1 / 1200; 
+
         for (let i = 0; i < pages.length; i++) {
           const pNum = i + 1; const page = pages[i]; const { width, height } = page.getSize();
           const pdfPage = await state.pdfDoc.getPage(pNum);
-          const rotation = state.pageRotations[pNum] || 0;
-          const vp = pdfPage.getViewport({ scale: 1, rotation });
-          const sx = width / vp.width, sy = height / vp.height;
+          const vp = pdfPage.getViewport({ scale: 1, rotation: state.pageRotations[pNum] || 0 });
+          const scaleX = width / vp.width;
+          const scaleY = height / vp.height;
+          const renderScale = 1200 / vp.width;
+
           (state.pageDrawings[pNum] || []).forEach(stroke => {
             for (let j = 0; j < stroke.length - 1; j++) {
               const p1 = stroke[j], p2 = stroke[j+1];
               const hex = p1.color.replace('#', '');
-              page.drawLine({ start: { x: p1.x * sx, y: height - (p1.y * sy) }, end: { x: p2.x * sx, y: height - (p2.y * sy) }, thickness: p1.size * sx, color: rgb(parseInt(hex.substring(0,2),16)/255, parseInt(hex.substring(2,4),16)/255, parseInt(hex.substring(4,6),16)/255), opacity: 0.9 });
+              page.drawLine({ 
+                start: { x: (p1.x / renderScale) * scaleX, y: height - ((p1.y / renderScale) * scaleY) }, 
+                end: { x: (p2.x / renderScale) * scaleX, y: height - ((p2.y / renderScale) * scaleY) }, 
+                thickness: (p1.size / renderScale) * scaleX, 
+                color: rgb(parseInt(hex.substring(0,2),16)/255, parseInt(hex.substring(2,4),16)/255, parseInt(hex.substring(4,6),16)/255), 
+                opacity: 0.9 
+              });
             }
           });
+          
           (state.pageTexts[pNum] || []).forEach(item => {
             const hex = item.color.replace('#', '');
-            page.drawText(item.text, { x: item.x * sx, y: height - (item.y * sy) - item.size * sy, size: item.size * sy, color: rgb(parseInt(hex.substring(0,2),16)/255, parseInt(hex.substring(2,4),16)/255, parseInt(hex.substring(4,6),16)/255) });
+            page.drawText(item.text, { 
+              x: (item.x / renderScale) * scaleX, 
+              y: height - ((item.y / renderScale) * scaleY) - (item.size / renderScale) * scaleY, 
+              size: (item.size / renderScale) * scaleY, 
+              color: rgb(parseInt(hex.substring(0,2),16)/255, parseInt(hex.substring(2,4),16)/255, parseInt(hex.substring(4,6),16)/255) 
+            });
           });
+          
           for (const item of (state.pageImages[pNum] || [])) {
             try {
               const bytes = await fetch(item.src).then(r => r.arrayBuffer());
               const emb = item.src.startsWith('data:image/png') ? await pdfDocEdit.embedPng(bytes) : await pdfDocEdit.embedJpg(bytes);
-              page.drawImage(emb, { x: item.x * sx, y: height - (item.y + item.height) * sy, width: item.width * sx, height: item.height * sy });
+              page.drawImage(emb, { 
+                x: (item.x / renderScale) * scaleX, 
+                y: height - ((item.y / renderScale) * scaleY) - ((item.height / renderScale) * scaleY), 
+                width: (item.width / renderScale) * scaleX, 
+                height: (item.height / renderScale) * scaleY 
+              });
             } catch (e) { console.warn('Img skip:', e); }
           }
         }
+        
         for (let i = 0; i < pages.length; i++) { const pNum = i + 1; if (state.pageRotations[pNum]) pages[i].setRotation(degrees((pages[i].getRotation().angle || 0) + state.pageRotations[pNum])); }
         Array.from(state.deletedPages).sort((a,b)=>b-a).forEach(n => { if (n >= 1 && n <= pages.length) pdfDocEdit.removePage(n - 1); });
+        
         const modBytes = await pdfDocEdit.save();
         const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([modBytes], { type: 'application/pdf' })); link.download = 'documento_editado.pdf'; link.click();
       } catch (err) { alert('Error al exportar: ' + err.message); }
