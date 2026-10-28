@@ -305,7 +305,53 @@
       zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
       showZoomBadge();
     }
+    // ===== DESLIZAR CON EL DEDO (SWIPE) PARA CAMBIAR DE PÁGINA =====
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let swipeTime = 0;
 
+    viewerContainer.addEventListener('touchstart', (e) => {
+      // Solo en modo Leer, y solo si es un toque con un dedo
+      if (state.currentMode !== 'view' || e.touches.length !== 1) return;
+      
+      swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
+      swipeTime = Date.now();
+    }, { passive: true });
+
+    viewerContainer.addEventListener('touchend', (e) => {
+      if (state.currentMode !== 'view') return;
+      
+      // Si fue un toque rápido, no hacer nada
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = touchEndX - swipeStartX;
+      const deltaY = touchEndY - swipeStartY;
+      const timeDiff = Date.now() - swipeTime;
+
+      // Condiciones para considerar que fue un deslizamiento horizontal:
+      // - Se movió más de 70px a los lados
+      // - Se movió menos de 50px hacia arriba/abajo (para no interferir con el scroll)
+      // - Fue rápido (menos de 400ms)
+      if (Math.abs(deltaX) > 70 && Math.abs(deltaY) < 50 && timeDiff < 400) {
+        
+        if (deltaX > 0) {
+          // Deslizó hacia la derecha -> Página anterior
+          if (state.pageNum > 1) {
+            state.pageNum--;
+            queueRenderPage(state.pageNum);
+          }
+        } else {
+          // Deslizó hacia la izquierda -> Página siguiente
+          if (state.pdfDoc && state.pageNum < state.pageCount) {
+            state.pageNum++;
+            queueRenderPage(state.pageNum);
+          }
+        }
+      }
+    }, { passive: true });
     function showZoomBadge() {
       zoomBadge.classList.add('show');
       clearTimeout(showZoomBadge._t);
