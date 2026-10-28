@@ -7,22 +7,16 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <!-- PDF.js para Lectura -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <!-- pdf-lib para Edición y Guardado -->
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
-    body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
     #viewerContainer { position: relative; overflow: hidden; touch-action: none; background: #020617; }
     #pdfWrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; display: inline-block; }
@@ -52,7 +46,6 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col select-none">
 
-  <!-- ENCABEZADO -->
   <header class="bg-slate-800 border-b border-slate-700 px-3 py-2 sticky top-0 z-30 flex items-center justify-between shrink-0">
     <div class="flex items-center space-x-2">
       <i class="fa-solid fa-file-pdf text-red-500 text-xl"></i>
@@ -60,13 +53,11 @@
     </div>
     <div class="flex items-center space-x-1.5">
       <label for="pdfInput" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition">
-        <i class="fa-solid fa-folder-open"></i>
-        <span class="hidden sm:inline">Abrir</span>
+        <i class="fa-solid fa-folder-open"></i><span class="hidden sm:inline">Abrir</span>
       </label>
       <input type="file" id="pdfInput" accept="application/pdf" class="hidden">
       <button id="downloadBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition opacity-50 cursor-not-allowed" disabled>
-        <i class="fa-solid fa-download"></i>
-        <span class="hidden sm:inline">Guardar</span>
+        <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Guardar</span>
       </button>
       <button id="menuBtn" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg transition" title="Más opciones">
         <i class="fa-solid fa-ellipsis-vertical"></i>
@@ -74,38 +65,20 @@
     </div>
   </header>
 
-  <!-- MENÚ AVANZADO -->
   <div id="advancedMenu" class="hidden bg-slate-800 border-b border-slate-700 px-3 py-3 z-20 shrink-0">
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-      <button id="newPdfBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-circle-plus text-emerald-400"></i><span>PDF nuevo</span>
-      </button>
-      <button id="exportPngBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-image text-blue-400"></i><span>Exportar PNG</span>
-      </button>
-      <button id="exportTxtBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-lines text-yellow-400"></i><span>Exportar TXT</span>
-      </button>
-      <button id="convertBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-word text-blue-300"></i><span>Convertir</span>
-      </button>
-      <button id="insertImgBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-image text-purple-400"></i><span>Insertar imagen</span>
-      </button>
-      <button id="voiceBtnGlobal" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-microphone text-pink-400"></i><span>Dictar</span>
-      </button>
-      <button id="rotatePageBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-rotate-right text-orange-400"></i><span>Rotar pág.</span>
-      </button>
-      <button id="deletePageBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-trash text-red-400"></i><span>Borrar pág.</span>
-      </button>
+      <button id="newPdfBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-file-circle-plus text-emerald-400"></i><span>PDF nuevo</span></button>
+      <button id="exportPngBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-image text-blue-400"></i><span>Exportar PNG</span></button>
+      <button id="exportTxtBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-file-lines text-yellow-400"></i><span>Exportar TXT</span></button>
+      <button id="convertBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-file-word text-blue-300"></i><span>Convertir</span></button>
+      <button id="insertImgBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-image text-purple-400"></i><span>Insertar imagen</span></button>
+      <button id="voiceBtnGlobal" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-microphone text-pink-400"></i><span>Dictar</span></button>
+      <button id="rotatePageBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-rotate-right text-orange-400"></i><span>Rotar pág.</span></button>
+      <button id="deletePageBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition"><i class="fa-solid fa-trash text-red-400"></i><span>Borrar pág.</span></button>
     </div>
     <input type="file" id="imageInput" accept="image/*" class="hidden">
   </div>
 
-  <!-- BARRA DE HERRAMIENTAS -->
   <div class="bg-slate-800 border-b border-slate-700 p-2 flex flex-wrap items-center justify-between gap-2 z-20 text-xs shrink-0">
     <div class="flex items-center space-x-1 bg-slate-900 rounded-lg p-1">
       <button id="prevPage" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
@@ -132,7 +105,6 @@
     </div>
   </div>
 
-  <!-- VISOR PRINCIPAL -->
   <main class="flex-1 relative bg-slate-950 overflow-hidden" id="viewerContainer">
     <div id="emptyState" class="absolute inset-0 flex items-center justify-center p-4 z-10">
       <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center max-w-md text-center">
@@ -150,7 +122,6 @@
     <div id="zoomBadge">100%</div>
   </main>
 
-  <!-- MODAL DE VOZ -->
   <div id="voiceModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
       <div class="flex items-center justify-between mb-4">
@@ -167,7 +138,6 @@
     </div>
   </div>
 
-  <!-- MODAL DE CONVERSIÓN -->
   <div id="convertModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
       <div class="flex items-center justify-between mb-4">
@@ -176,28 +146,18 @@
       </div>
       <p class="text-sm text-slate-400 mb-4">La conversión a Word/Excel se realizará en la web oficial de PDFto.Tools. Se abrirá en una nueva pestaña.</p>
       <div class="grid grid-cols-2 gap-2">
-        <button data-convert="docx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-word text-blue-400 text-xl"></i><span class="text-xs">Word (.docx)</span>
-        </button>
-        <button data-convert="xlsx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-excel text-green-400 text-xl"></i><span class="text-xs">Excel (.xlsx)</span>
-        </button>
-        <button data-convert="pptx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-powerpoint text-orange-400 text-xl"></i><span class="text-xs">PowerPoint</span>
-        </button>
-        <button data-convert="html" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-code text-yellow-400 text-xl"></i><span class="text-xs">HTML</span>
-        </button>
+        <button data-convert="docx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition"><i class="fa-solid fa-file-word text-blue-400 text-xl"></i><span class="text-xs">Word (.docx)</span></button>
+        <button data-convert="xlsx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition"><i class="fa-solid fa-file-excel text-green-400 text-xl"></i><span class="text-xs">Excel (.xlsx)</span></button>
+        <button data-convert="pptx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition"><i class="fa-solid fa-file-powerpoint text-orange-400 text-xl"></i><span class="text-xs">PowerPoint</span></button>
+        <button data-convert="html" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition"><i class="fa-solid fa-file-code text-yellow-400 text-xl"></i><span class="text-xs">HTML</span></button>
       </div>
-      <div id="convertStatus" class="text-xs text-slate-500 mt-3 text-center"></div>
     </div>
   </div>
 
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then(reg => console.log('SW:', reg.scope)).catch(err => console.error('SW error:', err));
+      navigator.serviceWorker.register('sw.js').catch(err => console.error('SW error:', err));
     }
 
     const state = {
@@ -218,7 +178,6 @@
     const modeButtons = { view: $('modeView'), draw: $('modeDraw'), text: $('modeText') };
     const advancedMenu = $('advancedMenu'), menuBtn = $('menuBtn');
 
-    // ===== CARGA DE PDF (ROBUSTA PARA ANDROID) =====
     pdfInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) loadPdfFile(file);
@@ -230,11 +189,11 @@
         file.arrayBuffer().then((buffer) => {
           state.rawPdfBytes = new Uint8Array(buffer);
           initPdfDocument(state.rawPdfBytes);
-        }).catch((err) => alert('No se pudo leer el archivo: ' + err.message));
+        }).catch((err) => alert('Error al leer archivo: ' + err.message));
       } else {
         const reader = new FileReader();
         reader.onload = (evt) => { state.rawPdfBytes = new Uint8Array(evt.target.result); initPdfDocument(state.rawPdfBytes); };
-        reader.onerror = () => alert('Error al leer el archivo.');
+        reader.onerror = () => alert('Error de lectura');
         reader.readAsArrayBuffer(file);
       }
     }
@@ -252,33 +211,28 @@
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         renderPage(state.pageNum);
-      }).catch(err => alert('Error al abrir el PDF: ' + err.message));
+      }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
-    // ===== RENDERIZADO (LÍMITE PARA MÓVILES) =====
     function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
-
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
         const baseViewport = page.getViewport({ scale: 1, rotation: rotation });
-        
-        // Límite estricto de densidad de píxeles para evitar cuelgues en celulares
-        const dpr = window.devicePixelRatio || 1;
-        const safeDpr = Math.min(dpr, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Límite para evitar cuelgues
 
-        pdfCanvas.width = Math.floor(baseViewport.width * safeDpr);
-        pdfCanvas.height = Math.floor(baseViewport.height * safeDpr);
+        pdfCanvas.width = Math.floor(baseViewport.width * dpr);
+        pdfCanvas.height = Math.floor(baseViewport.height * dpr);
         pdfCanvas.style.width = baseViewport.width + 'px';
         pdfCanvas.style.height = baseViewport.height + 'px';
-        pdfCtx.setTransform(safeDpr, 0, 0, safeDpr, 0, 0);
+        pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        drawCanvas.width = Math.floor(baseViewport.width * safeDpr);
-        drawCanvas.height = Math.floor(baseViewport.height * safeDpr);
+        drawCanvas.width = Math.floor(baseViewport.width * dpr);
+        drawCanvas.height = Math.floor(baseViewport.height * dpr);
         drawCanvas.style.width = baseViewport.width + 'px';
         drawCanvas.style.height = baseViewport.height + 'px';
-        drawCtx.setTransform(safeDpr, 0, 0, safeDpr, 0, 0);
+        drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         const container = pdfWrapper.querySelector('.canvas-container');
         container.style.width = baseViewport.width + 'px';
@@ -287,21 +241,16 @@
         const renderContext = {
           canvasContext: pdfCtx,
           viewport: baseViewport,
-          transform: [safeDpr, 0, 0, safeDpr, 0, 0]
+          transform: [dpr, 0, 0, dpr, 0, 0]
         };
 
         page.render(renderContext).promise.then(() => {
           state.rendering = false;
-          if (state.pendingPage !== null) {
-            const next = state.pendingPage;
-            state.pendingPage = null;
-            renderPage(next);
-          }
+          if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
           redrawAllAnnotations();
           fitPageToScreen();
-        }).catch(err => { console.error('Render error:', err); state.rendering = false; });
-      }).catch(err => { console.error('Page error:', err); state.rendering = false; });
-
+        });
+      });
       pageNumElem.textContent = num;
     }
 
@@ -313,7 +262,6 @@
     $('prevPage').addEventListener('click', () => { if (state.pageNum > 1) { state.pageNum--; queueRenderPage(state.pageNum); } });
     $('nextPage').addEventListener('click', () => { if (state.pdfDoc && state.pageNum < state.pageCount) { state.pageNum++; queueRenderPage(state.pageNum); } });
 
-    // ===== ZOOM Y PANEO =====
     function applyTransform() {
       pdfWrapper.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
       zoomLevelElem.textContent = Math.round(state.zoom * 100) + '%';
@@ -356,17 +304,14 @@
     $('zoomOut').addEventListener('click', () => { const r = viewerContainer.getBoundingClientRect(); zoomAt(0.8, r.left + r.width/2, r.top + r.height/2); });
     $('zoomReset').addEventListener('click', fitPageToScreen);
 
-    // ===== GESTOS TÁCTILES =====
     let touchState = { active: false, startDist: 0, startZoom: 1, startMidX: 0, startMidY: 0, startPanX: 0, startPanY: 0, singleX: 0, singleY: 0, lastTap: 0 };
-
     function getTouchDist(t1, t2) { return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY); }
     function getTouchMid(t1, t2) { return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 }; }
 
     viewerContainer.addEventListener('touchstart', (e) => {
       if (state.currentMode !== 'view') return;
       if (e.touches.length === 2) {
-        e.preventDefault();
-        touchState.active = true;
+        e.preventDefault(); touchState.active = true;
         touchState.startDist = getTouchDist(e.touches[0], e.touches[1]);
         touchState.startZoom = state.zoom;
         const mid = getTouchMid(e.touches[0], e.touches[1]);
@@ -405,7 +350,6 @@
 
     viewerContainer.addEventListener('touchend', () => { touchState.active = false; });
 
-    // ===== MODOS =====
     function setMode(mode) {
       state.currentMode = mode;
       Object.entries(modeButtons).forEach(([k, btn]) => { btn.classList.remove('active'); btn.classList.add('text-slate-400'); });
@@ -418,9 +362,7 @@
     modeButtons.draw.addEventListener('click', () => setMode('draw'));
     modeButtons.text.addEventListener('click', () => setMode('text'));
 
-    // ===== DIBUJO =====
     let isDrawing = false, currentStroke = [];
-
     function getCanvasCoords(e) {
       const rect = drawCanvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -428,7 +370,6 @@
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       return { x: (clientX - rect.left) * (drawCanvas.width / rect.width) / dpr, y: (clientY - rect.top) * (drawCanvas.height / rect.height) / dpr };
     }
-
     function startDraw(e) {
       if (state.currentMode === 'text') { addTextAt(e); return; }
       if (state.currentMode !== 'draw') return;
@@ -436,7 +377,6 @@
       const c = getCanvasCoords(e);
       currentStroke = [{ x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) }];
     }
-
     function moveDraw(e) {
       if (!isDrawing || state.currentMode !== 'draw') return;
       e.preventDefault();
@@ -447,36 +387,30 @@
       const prev = currentStroke[currentStroke.length - 2];
       drawCtx.beginPath(); drawCtx.moveTo(prev.x, prev.y); drawCtx.lineTo(point.x, point.y); drawCtx.stroke();
     }
-
     function endDraw() {
       if (!isDrawing) return; isDrawing = false;
       if (currentStroke.length > 0) { (state.pageDrawings[state.pageNum] = state.pageDrawings[state.pageNum] || []).push(currentStroke); currentStroke = []; }
     }
-
     drawCanvas.addEventListener('mousedown', startDraw); drawCanvas.addEventListener('mousemove', moveDraw); drawCanvas.addEventListener('mouseup', endDraw); drawCanvas.addEventListener('mouseleave', endDraw);
     drawCanvas.addEventListener('touchstart', startDraw, { passive: false }); drawCanvas.addEventListener('touchmove', moveDraw, { passive: false }); drawCanvas.addEventListener('touchend', endDraw);
 
-    // ===== TEXTOS E IMÁGENES =====
     let textCounter = 0, imgCounter = 0;
-
     function addTextAt(e) {
       const rect = drawCanvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const text = prompt('Ingrese el texto (o usa el dictado):');
+      const text = prompt('Ingrese el texto:');
       if (!text || !text.trim()) return;
       const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: clientX - rect.left, y: clientY - rect.top, text: text.trim(), color: drawColor.value, size: 16 };
       (state.pageTexts[state.pageNum] = state.pageTexts[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
-
     function addTextFromVoice(text) {
       if (!text || !text.trim()) return;
       const item = { id: 'txt_' + (++textCounter) + '_' + Date.now(), type: 'text', x: 40, y: 40, text: text.trim(), color: drawColor.value, size: 16 };
       (state.pageTexts[state.pageNum] = state.pageTexts[state.pageNum] || []).push(item);
       renderFloatingItems();
     }
-
     function addImageFromDataUrl(dataUrl, w, h) {
       const item = { id: 'img_' + (++imgCounter) + '_' + Date.now(), type: 'image', x: 40, y: 40, width: w || 200, height: h || 200, src: dataUrl };
       (state.pageImages[state.pageNum] = state.pageImages[state.pageNum] || []).push(item);
@@ -544,13 +478,11 @@
       const el = pdfWrapper.querySelector(`.floating-item[data-id="${id}"]`);
       if (el) { el.classList.add('selected'); showItemToolbar(el, id); }
     }
-
     function deselectItem() {
       state.selectedItem = null;
       pdfWrapper.querySelectorAll('.floating-item.selected').forEach(el => el.classList.remove('selected'));
       pdfWrapper.querySelectorAll('.item-toolbar').forEach(el => el.remove());
     }
-
     function showItemToolbar(el, id) {
       pdfWrapper.querySelectorAll('.item-toolbar').forEach(t => t.remove());
       const toolbar = document.createElement('div'); toolbar.className = 'item-toolbar';
@@ -568,7 +500,6 @@
       del.onclick = (e) => { e.stopPropagation(); deleteItem(id); };
       toolbar.appendChild(del); el.appendChild(toolbar);
     }
-
     function findItemById(id) { return (state.pageTexts[state.pageNum] || []).find(t => t.id === id) || (state.pageImages[state.pageNum] || []).find(i => i.id === id); }
     function editItem(id) { const item = findItemById(id); if (!item) return; if (item.type === 'text') { const n = prompt('Editar texto:', item.text); if (n && n.trim()) { item.text = n.trim(); renderFloatingItems(); } } }
     function deleteItem(id) { state.pageTexts[state.pageNum] = (state.pageTexts[state.pageNum] || []).filter(t => t.id !== id); state.pageImages[state.pageNum] = (state.pageImages[state.pageNum] || []).filter(i => i.id !== id); deselectItem(); renderFloatingItems(); }
@@ -584,10 +515,8 @@
       }
     });
 
-    // ===== MENÚ AVANZADO Y HERRAMIENTAS =====
     menuBtn.addEventListener('click', () => advancedMenu.classList.toggle('hidden'));
 
-    // ===== DICTADO POR VOZ =====
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null, voiceActive = false;
     const voiceModal = $('voiceModal'), voiceStatus = $('voiceStatus'), voiceText = $('voiceText');
@@ -597,7 +526,6 @@
       if (!SpeechRecognition) { alert('Tu navegador no soporta dictado por voz. Usa Chrome o Edge.'); return; }
       voiceModal.classList.remove('hidden'); voiceText.textContent = ''; voiceStatus.textContent = 'Pulsa "Iniciar" y habla claramente.';
     }
-
     $('voiceBtnGlobal').addEventListener('click', openVoiceModal);
     voiceModalClose.addEventListener('click', () => { stopVoice(); voiceModal.classList.add('hidden'); });
 
@@ -615,7 +543,6 @@
       recognition.onend = () => { voiceActive = false; voiceStartBtn.classList.remove('hidden'); voiceStopBtn.classList.add('hidden'); };
       recognition.start();
     }
-
     function stopVoice() { if (recognition && voiceActive) recognition.stop(); }
     voiceStartBtn.addEventListener('click', startVoice); voiceStopBtn.addEventListener('click', stopVoice);
     voiceInsertBtn.addEventListener('click', () => {
@@ -624,7 +551,6 @@
       addTextFromVoice(text); voiceModal.classList.add('hidden'); setMode('text');
     });
 
-    // ===== INSERTAR IMAGEN =====
     const imageInput = $('imageInput');
     $('insertImgBtn').addEventListener('click', () => imageInput.click());
     imageInput.addEventListener('change', (e) => {
@@ -643,7 +569,6 @@
       reader.readAsDataURL(file); imageInput.value = '';
     });
 
-    // ===== EXPORTAR PNG =====
     $('exportPngBtn').addEventListener('click', () => {
       if (!state.pdfDoc) { alert('Abre un PDF primero.'); return; }
       const temp = document.createElement('canvas'); temp.width = pdfCanvas.width; temp.height = pdfCanvas.height;
@@ -658,7 +583,6 @@
       });
     });
 
-    // ===== EXPORTAR TXT =====
     $('exportTxtBtn').addEventListener('click', async () => {
       if (!state.pdfDoc) { alert('Abre un PDF primero.'); return; }
       let fullText = '';
@@ -671,7 +595,6 @@
       const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'documento_extraido.txt'; link.click();
     });
 
-    // ===== GUARDAR PDF =====
     downloadBtn.addEventListener('click', async () => {
       if (!state.rawPdfBytes) return;
       const orig = downloadBtn.innerHTML;
@@ -734,7 +657,6 @@
       initPdfDocument(bytes); advancedMenu.classList.add('hidden');
     });
 
-    // ===== CONVERSIÓN =====
     const convertModal = $('convertModal');
     const convertModalClose = $('convertModalClose');
 
@@ -753,7 +675,6 @@
       });
     });
 
-    // ===== RECEPCIÓN DESDE WHATSAPP (IndexedDB) =====
     async function checkSharedFile() {
       try {
         const db = await new Promise((res, rej) => { const r = indexedDB.open('PDFReaderDB', 1); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
