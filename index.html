@@ -2,251 +2,66 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Súper Lector y Editor PDF</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lector y Editor PDF</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
+  
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+  
   <!-- PDF.js para Lectura -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- pdf-lib para Edición y Guardado -->
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
   <style>
-    /* ===== RESET Y BASE ===== */
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overscroll-behavior: none;
-    }
-    body {
-      touch-action: manipulation;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    }
-
-    /* ===== CONTENEDOR DEL PDF CON ZOOM/ PANEO ===== */
-    #viewerContainer {
-      position: relative;
-      overflow: hidden;
-      touch-action: none; /* permite controlar gestos nosotros */
-      background: #020617;
-    }
-
-    #pdfWrapper {
-      position: absolute;
-      top: 0;
-      left: 0;
-      transform-origin: 0 0;
-      will-change: transform;
-      display: inline-block;
-    }
-
     .canvas-container {
       position: relative;
-      display: block;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
-      border-radius: 6px;
+      display: inline-block;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
       overflow: hidden;
-      background: white;
     }
-
-    #pdfCanvas {
-      display: block;
-    }
-
     #drawCanvas {
       position: absolute;
       top: 0;
       left: 0;
-      pointer-events: none;
       touch-action: none;
     }
-
-    /* ===== MODO DIBUJO / TEXTO ACTIVA EL CANVAS ===== */
-    #drawCanvas.active {
-      pointer-events: auto;
-    }
-
-    /* ===== ELEMENTOS FLOTANTES (texto e imágenes) ===== */
-    .floating-item {
-      position: absolute;
-      cursor: move;
-      user-select: none;
-      touch-action: none;
-      z-index: 5;
-    }
-    .floating-item.selected {
-      outline: 2px dashed #3b82f6;
-      outline-offset: 2px;
-    }
-    .floating-text {
-      padding: 2px 4px;
-      min-width: 20px;
-      white-space: pre-wrap;
-      font-size: 16px;
-      line-height: 1.2;
-      border-radius: 3px;
-    }
-    .floating-img img {
-      display: block;
-      max-width: 100%;
-      pointer-events: none;
-    }
-    .item-toolbar {
-      position: absolute;
-      top: -34px;
-      left: 0;
-      display: flex;
-      gap: 4px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 3px 5px;
-      z-index: 10;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    }
-    .item-toolbar button {
-      background: transparent;
-      border: none;
-      color: #cbd5e1;
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .item-toolbar button:hover {
-      background: #334155;
-      color: #fff;
-    }
-    .item-toolbar button.danger:hover {
-      background: #dc2626;
-    }
-
-    /* ===== INDICADOR DE ZOOM ===== */
-    #zoomBadge {
-      position: absolute;
-      bottom: 12px;
-      right: 12px;
-      background: rgba(15, 23, 42, 0.85);
-      color: #e2e8f0;
-      font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      border: 1px solid #334155;
-      z-index: 20;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-    #zoomBadge.show {
-      opacity: 1;
-    }
-
-    /* ===== PANEL DE HERRAMIENTAS DESLIZANTE ===== */
-    .tool-panel {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.25s ease;
-    }
-    .tool-panel.open {
-      max-height: 500px;
-    }
-
-    /* ===== SCROLLBAR DISCRETO ===== */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-    /* ===== BOTONES DE MODO ACTIVO ===== */
-    .mode-btn.active {
-      background-color: #2563eb;
-      color: #fff;
+    body {
+      touch-action: manipulation;
     }
   </style>
 </head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col select-none">
-
-  <!-- ===== ENCABEZADO / BARRA SUPERIOR ===== -->
-  <header class="bg-slate-800 border-b border-slate-700 px-3 py-2 sticky top-0 z-30 flex items-center justify-between shrink-0">
+  <!-- Encabezado / Barra superior -->
+  <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 sticky top-0 z-30 flex items-center justify-between">
     <div class="flex items-center space-x-2">
-      <i class="fa-solid fa-file-pdf text-red-500 text-xl"></i>
-      <h1 class="font-bold text-sm sm:text-lg text-white">Súper PDF</h1>
+      <i class="fa-solid fa-file-pdf text-red-500 text-2xl"></i>
+      <h1 class="font-bold text-lg text-white">Mi Lector PDF</h1>
     </div>
-
-    <div class="flex items-center space-x-1.5">
-      <label for="pdfInput" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition">
+    
+    <div class="flex items-center space-x-2">
+      <label for="pdfInput" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition">
         <i class="fa-solid fa-folder-open"></i>
-        <span class="hidden sm:inline">Abrir</span>
+        <span class="hidden sm:inline">Abrir PDF</span>
       </label>
       <input type="file" id="pdfInput" accept="application/pdf" class="hidden">
 
-      <button id="downloadBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition opacity-50 cursor-not-allowed" disabled>
+      <button id="downloadBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition opacity-50 cursor-not-allowed" disabled>
         <i class="fa-solid fa-download"></i>
         <span class="hidden sm:inline">Guardar</span>
-      </button>
-
-      <button id="menuBtn" class="bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg transition" title="Más opciones">
-        <i class="fa-solid fa-ellipsis-vertical"></i>
       </button>
     </div>
   </header>
 
-  <!-- ===== MENÚ DESPLEGABLE DE OPCIONES AVANZADAS ===== -->
-  <div id="advancedMenu" class="hidden bg-slate-800 border-b border-slate-700 px-3 py-3 z-20 shrink-0">
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-      <button id="newPdfBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-circle-plus text-emerald-400"></i>
-        <span>PDF nuevo</span>
-      </button>
-      <button id="exportPngBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-image text-blue-400"></i>
-        <span>Exportar PNG</span>
-      </button>
-      <button id="exportTxtBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-lines text-yellow-400"></i>
-        <span>Exportar TXT</span>
-      </button>
-      <button id="convertBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-file-word text-blue-300"></i>
-        <span>Convertir</span>
-      </button>
-      <button id="insertImgBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-image text-purple-400"></i>
-        <span>Insertar imagen</span>
-      </button>
-      <button id="voiceBtnGlobal" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-microphone text-pink-400"></i>
-        <span>Dictar</span>
-      </button>
-      <button id="rotatePageBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-rotate-right text-orange-400"></i>
-        <span>Rotar pág.</span>
-      </button>
-      <button id="deletePageBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg flex items-center justify-center space-x-1.5 transition">
-        <i class="fa-solid fa-trash text-red-400"></i>
-        <span>Borrar pág.</span>
-      </button>
-    </div>
-    <input type="file" id="imageInput" accept="image/*" class="hidden">
-  </div>
-
-  <!-- ===== BARRA DE HERRAMIENTAS PRINCIPAL ===== -->
-  <div class="bg-slate-800 border-b border-slate-700 p-2 flex flex-wrap items-center justify-between gap-2 z-20 text-xs shrink-0">
-    <!-- Navegación de páginas -->
+  <!-- Barra de Herramientas Principal -->
+  <div class="bg-slate-800 border-b border-slate-700 p-2 flex flex-wrap items-center justify-between gap-2 z-20 text-sm">
+    <!-- Controles de Navegación -->
     <div class="flex items-center space-x-1 bg-slate-900 rounded-lg p-1">
       <button id="prevPage" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white"><i class="fa-solid fa-chevron-left"></i></button>
       <span class="px-2 text-xs font-semibold text-slate-400">
@@ -255,50 +70,41 @@
       <button id="nextPage" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white"><i class="fa-solid fa-chevron-right"></i></button>
     </div>
 
-    <!-- Zoom -->
+    <!-- Modos de Edición -->
     <div class="flex items-center space-x-1 bg-slate-900 rounded-lg p-1">
-      <button id="zoomOut" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white" title="Alejar"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
-      <span id="zoomLevel" class="px-1 text-xs font-semibold text-slate-400">100%</span>
-      <button id="zoomIn" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white" title="Acercar"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
-      <button id="zoomReset" class="p-2 hover:bg-slate-700 rounded transition text-slate-300 hover:text-white" title="Ajustar"><i class="fa-solid fa-expand"></i></button>
-    </div>
-
-    <!-- Modos -->
-    <div class="flex items-center space-x-1 bg-slate-900 rounded-lg p-1">
-      <button id="modeView" class="mode-btn active px-2.5 py-1.5 rounded text-xs font-medium transition">
+      <button id="modeView" class="px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition">
         <i class="fa-solid fa-hand"></i> Leer
       </button>
-      <button id="modeDraw" class="mode-btn px-2.5 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition">
+      <button id="modeDraw" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition">
         <i class="fa-solid fa-pen"></i> Dibujar
       </button>
-      <button id="modeText" class="mode-btn px-2.5 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition">
+      <button id="modeText" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition">
         <i class="fa-solid fa-font"></i> Texto
       </button>
     </div>
 
-    <!-- Herramientas de dibujo -->
+    <!-- Opciones de Pincel/Color -->
     <div id="drawTools" class="hidden flex items-center space-x-2 bg-slate-900 rounded-lg p-1">
-      <input type="color" id="drawColor" value="#ef4444" class="w-6 h-6 rounded border-0 cursor-pointer bg-transparent">
+      <input type="color" id="drawColor" value="#ef4444" class="w-7 h-7 rounded border-0 cursor-pointer bg-transparent">
       <select id="drawSize" class="bg-slate-800 text-xs border border-slate-700 rounded px-1 py-1 text-white">
         <option value="2">Fino</option>
         <option value="4" selected>Medio</option>
         <option value="8">Grueso</option>
       </select>
-      <button id="clearCanvas" class="p-1.5 hover:bg-slate-700 rounded text-red-400 hover:text-red-300" title="Borrar trazos">
+      <button id="clearCanvas" class="p-1.5 hover:bg-slate-700 rounded text-red-400 hover:text-red-300" title="Borrar trazos de esta página">
         <i class="fa-solid fa-trash"></i>
       </button>
     </div>
   </div>
 
-    <!-- ===== VISOR PRINCIPAL DEL DOCUMENTO ===== -->
-  <main class="flex-1 relative bg-slate-950 overflow-hidden" id="viewerContainer">
-
-    <!-- Pantalla de bienvenida -->
-    <div id="emptyState" class="absolute inset-0 flex items-center justify-center p-4 z-10">
-      <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center max-w-md text-center">
+  <!-- Vista Principal del Documento -->
+  <main class="flex-1 overflow-auto p-4 flex justify-center items-start bg-slate-950 relative" id="viewerContainer">
+    <!-- Pantalla de Bienvenida cuando no hay archivo cargado -->
+    <div id="emptyState" class="text-center my-auto py-12 px-4 max-w-md">
+      <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center">
         <i class="fa-solid fa-file-circle-plus text-5xl text-blue-500 mb-4"></i>
         <h2 class="text-xl font-bold text-white mb-2">Abre un archivo PDF</h2>
-        <p class="text-slate-400 text-sm mb-6">Selecciona un PDF desde tu almacenamiento o recíbelo directamente desde WhatsApp.</p>
+        <p class="text-slate-400 text-sm mb-6">Selecciona un archivo desde la memoria de tu dispositivo o compártelo directamente desde WhatsApp.</p>
         <label for="pdfInput" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-xl cursor-pointer shadow-lg transition flex items-center space-x-2">
           <i class="fa-solid fa-folder-open"></i>
           <span>Buscar PDF</span>
@@ -306,225 +112,123 @@
       </div>
     </div>
 
-    <!-- Contenedor del PDF con transformaciones -->
-    <div id="pdfWrapper" class="hidden">
-      <div class="canvas-container">
-        <canvas id="pdfCanvas"></canvas>
-        <canvas id="drawCanvas"></canvas>
-      </div>
+    <!-- Contenedor del PDF y Lienzo de Edición -->
+    <div id="pdfWrapper" class="canvas-container hidden">
+      <canvas id="pdfCanvas"></canvas>
+      <canvas id="drawCanvas"></canvas>
     </div>
-
-    <!-- Badge de nivel de zoom -->
-    <div id="zoomBadge">100%</div>
-
   </main>
 
-  <!-- ===== MODAL DE DICTADO POR VOZ ===== -->
-  <div id="voiceModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-white flex items-center space-x-2">
-          <i class="fa-solid fa-microphone text-pink-400"></i>
-          <span>Dictado por voz</span>
-        </h3>
-        <button id="voiceModalClose" class="text-slate-400 hover:text-white p-1">
-          <i class="fa-solid fa-xmark text-xl"></i>
-        </button>
-      </div>
-      <div id="voiceStatus" class="text-sm text-slate-400 mb-3 text-center">Pulsa el botón y habla claramente.</div>
-      <div id="voiceText" class="bg-slate-900 border border-slate-700 rounded-lg p-3 min-h-[100px] text-sm text-white mb-4 whitespace-pre-wrap"></div>
-      <div class="flex items-center justify-center space-x-3">
-        <button id="voiceStartBtn" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
-          <i class="fa-solid fa-microphone"></i>
-          <span>Iniciar</span>
-        </button>
-        <button id="voiceStopBtn" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition hidden">
-          <i class="fa-solid fa-stop"></i>
-          <span>Detener</span>
-        </button>
-        <button id="voiceInsertBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
-          <i class="fa-solid fa-check"></i>
-          <span>Insertar</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== MODAL DE CONVERSIÓN ===== -->
-  <div id="convertModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-    <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-white flex items-center space-x-2">
-          <i class="fa-solid fa-file-export text-blue-400"></i>
-          <span>Convertir PDF</span>
-        </h3>
-        <button id="convertModalClose" class="text-slate-400 hover:text-white p-1">
-          <i class="fa-solid fa-xmark text-xl"></i>
-        </button>
-      </div>
-      <p class="text-sm text-slate-400 mb-4">La conversión a Word/Excel se realiza en el navegador con WebAssembly. Puede tardar según el tamaño del PDF.</p>
-      <div class="grid grid-cols-2 gap-2">
-        <button data-convert="docx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-word text-blue-400 text-xl"></i>
-          <span class="text-xs">Word (.docx)</span>
-        </button>
-        <button data-convert="xlsx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-excel text-green-400 text-xl"></i>
-          <span class="text-xs">Excel (.xlsx)</span>
-        </button>
-        <button data-convert="pptx" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-powerpoint text-orange-400 text-xl"></i>
-          <span class="text-xs">PowerPoint</span>
-        </button>
-        <button data-convert="html" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-3 rounded-lg flex flex-col items-center space-y-1 transition">
-          <i class="fa-solid fa-file-code text-yellow-400 text-xl"></i>
-          <span class="text-xs">HTML</span>
-        </button>
-      </div>
-      <div id="convertStatus" class="text-xs text-slate-500 mt-3 text-center"></div>
-    </div>
-  </div>
-
-  <!-- ===== SCRIPT PRINCIPAL ===== -->
+  <!-- Lógica JavaScript Principal -->
   <script>
-    // Configuración del worker de PDF.js
+    // Inicializar PDF.js worker
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // ===== REGISTRO DEL SERVICE WORKER =====
+    // Registro del Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').then((reg) => {
-        console.log('SW registrado:', reg.scope);
-      }).catch(err => console.error('Error SW:', err));
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('Service Worker registrado correctamente.'))
+        .catch(err => console.error('Error al registrar Service Worker:', err));
     }
 
-    // ===== ESTADO GLOBAL =====
-    const state = {
-      rawPdfBytes: null,
-      pdfDoc: null,
-      pageNum: 1,
-      pageCount: 0,
-      baseScale: 1.0,        // escala de render (calidad del canvas)
-      zoom: 1.0,             // factor de zoom visual (CSS transform)
-      panX: 0,
-      panY: 0,
-      currentMode: 'view',
-      rendering: false,
-      pendingPage: null,
-      pageDrawings: {},      // { pageNum: [strokes] }
-      pageTexts: {},         // { pageNum: [textos] }
-      pageImages: {},        // { pageNum: [imagenes] }
-      selectedItem: null,
-      pageRotations: {},     // { pageNum: grados }
-      deletedPages: new Set(),
-    };
+    // Variables de Estado
+    let rawPdfBytes = null;
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let currentScale = 1.3;
+    let currentMode = 'view'; // 'view', 'draw', 'text'
 
-    // ===== REFERENCIAS DOM =====
-    const $ = (id) => document.getElementById(id);
-    const pdfInput = $('pdfInput');
-    const pdfCanvas = $('pdfCanvas');
-    const drawCanvas = $('drawCanvas');
+    // Colecciones de Anotaciones por Página
+    const pageDrawings = {}; // { pageNum: [strokes] }
+    const pageTexts = {};    // { pageNum: [textObjects] }
+
+    // Elementos DOM
+    const pdfInput = document.getElementById('pdfInput');
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const drawCanvas = document.getElementById('drawCanvas');
     const pdfCtx = pdfCanvas.getContext('2d');
     const drawCtx = drawCanvas.getContext('2d');
-    const pdfWrapper = $('pdfWrapper');
-    const emptyState = $('emptyState');
-    const pageNumElem = $('pageNum');
-    const pageCountElem = $('pageCount');
-    const zoomLevelElem = $('zoomLevel');
-    const zoomBadge = $('zoomBadge');
-    const downloadBtn = $('downloadBtn');
-    const viewerContainer = $('viewerContainer');
-    const drawTools = $('drawTools');
-    const drawColor = $('drawColor');
-    const drawSize = $('drawSize');
-    const clearCanvasBtn = $('clearCanvas');
-    const modeButtons = { view: $('modeView'), draw: $('modeDraw'), text: $('modeText') };
-    const advancedMenu = $('advancedMenu');
-    const menuBtn = $('menuBtn');
+    const pdfWrapper = document.getElementById('pdfWrapper');
+    const emptyState = document.getElementById('emptyState');
+    const pageNumElem = document.getElementById('pageNum');
+    const pageCountElem = document.getElementById('pageCount');
+    const downloadBtn = document.getElementById('downloadBtn');
 
-        // ===== CARGA DE PDF =====
+    // Botones de Modo
+    const modeView = document.getElementById('modeView');
+    const modeDraw = document.getElementById('modeDraw');
+    const modeText = document.getElementById('modeText');
+    const drawTools = document.getElementById('drawTools');
+
+    // Herramientas de Dibujo
+    const drawColor = document.getElementById('drawColor');
+    const drawSize = document.getElementById('drawSize');
+    const clearCanvasBtn = document.getElementById('clearCanvas');
+
+    // --- CARGA DE ARCHIVO PDF ---
     pdfInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
-      if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+      if (file && file.type === 'application/pdf') {
         loadPdfFile(file);
       }
     });
 
     function loadPdfFile(file) {
       const reader = new FileReader();
-      reader.onload = (evt) => {
-        state.rawPdfBytes = new Uint8Array(evt.target.result);
-        initPdfDocument(state.rawPdfBytes);
+      reader.onload = function(evt) {
+        rawPdfBytes = new Uint8Array(evt.target.result);
+        initPdfDocument(rawPdfBytes);
       };
       reader.readAsArrayBuffer(file);
     }
 
     function initPdfDocument(bytes) {
-      pdfjsLib.getDocument({ data: bytes.slice(0) }).promise.then((doc) => {
-        state.pdfDoc = doc;
-        state.pageCount = doc.numPages;
-        state.pageNum = 1;
-        state.pageRotations = {};
-        state.deletedPages = new Set();
-
-        pageCountElem.textContent = doc.numPages;
+      pdfjsLib.getDocument({ data: bytes }).promise.then((doc) => {
+        pdfDoc = doc;
+        pageCountElem.textContent = pdfDoc.numPages;
+        pageNum = 1;
+        
         emptyState.classList.add('hidden');
         pdfWrapper.classList.remove('hidden');
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 
-        // Ajustar zoom inicial para que la página quepa en pantalla
-        fitPageToScreen();
-        renderPage(state.pageNum);
+        renderPage(pageNum);
       }).catch(err => {
         alert('Error al abrir el PDF: ' + err.message);
       });
     }
 
-    // ===== RENDERIZADO DE PÁGINA =====
+    // --- RENDERIZADO DE PÁGINA ---
     function renderPage(num) {
-      if (!state.pdfDoc) return;
-      state.rendering = true;
+      pageRendering = true;
 
-      state.pdfDoc.getPage(num).then((page) => {
-        // Rotación de página
-        const rotation = state.pageRotations[num] || 0;
-        const viewport = page.getViewport({ scale: state.baseScale, rotation: rotation });
+      pdfDoc.getPage(num).then((page) => {
+        const viewport = page.getViewport({ scale: currentScale });
+        
+        // Ajustar Canvas principal
+        pdfCanvas.height = viewport.height;
+        pdfCanvas.width = viewport.width;
 
-        // Ajustar canvas al tamaño real del viewport
-        const dpr = window.devicePixelRatio || 1;
-        pdfCanvas.width = Math.floor(viewport.width * dpr);
-        pdfCanvas.height = Math.floor(viewport.height * dpr);
-        pdfCanvas.style.width = viewport.width + 'px';
-        pdfCanvas.style.height = viewport.height + 'px';
-
-        pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        drawCanvas.width = Math.floor(viewport.width * dpr);
-        drawCanvas.height = Math.floor(viewport.height * dpr);
-        drawCanvas.style.width = viewport.width + 'px';
-        drawCanvas.style.height = viewport.height + 'px';
-        drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        // Actualizar tamaño del contenedor
-        const container = pdfWrapper.querySelector('.canvas-container');
-        container.style.width = viewport.width + 'px';
-        container.style.height = viewport.height + 'px';
+        // Ajustar Canvas de dibujo superior
+        drawCanvas.height = viewport.height;
+        drawCanvas.width = viewport.width;
 
         const renderContext = {
           canvasContext: pdfCtx,
-          viewport: viewport,
-          transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null,
+          viewport: viewport
         };
 
-        page.render(renderContext).promise.then(() => {
-          state.rendering = false;
-          if (state.pendingPage !== null) {
-            const next = state.pendingPage;
-            state.pendingPage = null;
-            renderPage(next);
+        const renderTask = page.render(renderContext);
+        renderTask.promise.then(() => {
+          pageRendering = false;
+          if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
           }
-          redrawAllAnnotations();
-          applyTransform();
+          redrawAnnotations();
         });
       });
 
@@ -532,832 +236,245 @@
     }
 
     function queueRenderPage(num) {
-      if (state.rendering) state.pendingPage = num;
-      else renderPage(num);
-    }
-
-    // ===== NAVEGACIÓN =====
-    $('prevPage').addEventListener('click', () => {
-      if (state.pageNum <= 1) return;
-      state.pageNum--;
-      queueRenderPage(state.pageNum);
-    });
-
-    $('nextPage').addEventListener('click', () => {
-      if (!state.pdfDoc || state.pageNum >= state.pageCount) return;
-      state.pageNum++;
-      queueRenderPage(state.pageNum);
-    });
-
-    // ===== ZOOM Y TRANSFORMACIÓN CSS =====
-    function applyTransform() {
-      const { zoom, panX, panY } = state;
-      pdfWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
-      const pct = Math.round(zoom * 100);
-      zoomLevelElem.textContent = pct + '%';
-      zoomBadge.textContent = pct + '%';
-    }
-
-    function showZoomBadge() {
-      zoomBadge.classList.add('show');
-      clearTimeout(showZoomBadge._t);
-      showZoomBadge._t = setTimeout(() => zoomBadge.classList.remove('show'), 1200);
-    }
-
-    function zoomAt(factor, centerX, centerY) {
-      const oldZoom = state.zoom;
-      let newZoom = oldZoom * factor;
-      newZoom = Math.min(Math.max(newZoom, 0.3), 6.0); // límites
-      if (newZoom === oldZoom) return;
-
-      // Ajustar pan para que el punto central se mantenga
-      if (centerX !== undefined && centerY !== undefined) {
-        const rect = viewerContainer.getBoundingClientRect();
-        const cx = centerX - rect.left;
-        const cy = centerY - rect.top;
-
-        state.panX = cx - (cx - state.panX) * (newZoom / oldZoom);
-        state.panY = cy - (cy - state.panY) * (newZoom / oldZoom);
+      if (pageRendering) {
+        pageNumPending = num;
+      } else {
+        renderPage(num);
       }
-
-      state.zoom = newZoom;
-      applyTransform();
-      showZoomBadge();
     }
 
-    function fitPageToScreen() {
-      if (!pdfCanvas.width) return;
-      const rect = viewerContainer.getBoundingClientRect();
-      const canvasW = parseFloat(pdfCanvas.style.width) || pdfCanvas.width;
-      const canvasH = parseFloat(pdfCanvas.style.height) || pdfCanvas.height;
-      const scaleX = (rect.width - 24) / canvasW;
-      const scaleY = (rect.height - 24) / canvasH;
-      const fit = Math.min(scaleX, scaleY, 2.5);
-      state.zoom = fit;
-      state.panX = (rect.width - canvasW * fit) / 2;
-      state.panY = (rect.height - canvasH * fit) / 2;
-      applyTransform();
-      showZoomBadge();
-    }
-
-    $('zoomIn').addEventListener('click', () => {
-      const rect = viewerContainer.getBoundingClientRect();
-      zoomAt(1.25, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    document.getElementById('prevPage').addEventListener('click', () => {
+      if (pageNum <= 1) return;
+      pageNum--;
+      queueRenderPage(pageNum);
     });
 
-    $('zoomOut').addEventListener('click', () => {
-      const rect = viewerContainer.getBoundingClientRect();
-      zoomAt(0.8, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    document.getElementById('nextPage').addEventListener('click', () => {
+      if (!pdfDoc || pageNum >= pdfDoc.numPages) return;
+      pageNum++;
+      queueRenderPage(pageNum);
     });
 
-    $('zoomReset').addEventListener('click', fitPageToScreen);
-
-    // ===== GESTOS TÁCTILES: PINCH ZOOM + PANEO + DOBLE TOQUE =====
-    let touchState = {
-      active: false,
-      startDist: 0,
-      startZoom: 1,
-      startMidX: 0,
-      startMidY: 0,
-      startPanX: 0,
-      startPanY: 0,
-      singleTouchStartX: 0,
-      singleTouchStartY: 0,
-      lastTapTime: 0,
-      moved: false,
-    };
-
-    function getTouchDist(t1, t2) {
-      return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-    }
-    function getTouchMid(t1, t2) {
-      return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
-    }
-
-    viewerContainer.addEventListener('touchstart', (e) => {
-      // En modo dibujo/texto, el drawCanvas tiene prioridad
-      if (state.currentMode !== 'view') return;
-
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        touchState.active = true;
-        touchState.startDist = getTouchDist(e.touches[0], e.touches[1]);
-        touchState.startZoom = state.zoom;
-        const mid = getTouchMid(e.touches[0], e.touches[1]);
-        touchState.startMidX = mid.x;
-        touchState.startMidY = mid.y;
-        touchState.startPanX = state.panX;
-        touchState.startPanY = state.panY;
-      } else if (e.touches.length === 1) {
-        touchState.active = true;
-        touchState.singleTouchStartX = e.touches[0].clientX;
-        touchState.singleTouchStartY = e.touches[0].clientY;
-        touchState.startPanX = state.panX;
-        touchState.startPanY = state.panY;
-        touchState.moved = false;
-        // Detección de doble toque
-        const now = Date.now();
-        if (now - touchState.lastTapTime < 300) {
-          const rect = viewerContainer.getBoundingClientRect();
-          zoomAt(2.0, e.touches[0].clientX, e.touches[0].clientY);
-          touchState.lastTapTime = 0;
-        } else {
-          touchState.lastTapTime = now;
-        }
-      }
-    }, { passive: false });
-
-    viewerContainer.addEventListener('touchmove', (e) => {
-      if (state.currentMode !== 'view') return;
-      if (!touchState.active) return;
-
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const dist = getTouchDist(e.touches[0], e.touches[1]);
-        const factor = dist / touchState.startDist;
-        let newZoom = touchState.startZoom * factor;
-        newZoom = Math.min(Math.max(newZoom, 0.3), 6.0);
-
-        // Mantener el punto medio entre los dedos
-        const mid = getTouchMid(e.touches[0], e.touches[1]);
-        const rect = viewerContainer.getBoundingClientRect();
-        const cx = touchState.startMidX - rect.left;
-        const cy = touchState.startMidY - rect.top;
-        state.panX = cx - (cx - touchState.startPanX) * (newZoom / touchState.startZoom);
-        state.panY = cy - (cy - touchState.startPanY) * (newZoom / touchState.startZoom);
-        // Ajuste fino con el desplazamiento del punto medio
-        state.panX += (mid.x - touchState.startMidX);
-        state.panY += (mid.y - touchState.startMidY);
-
-        state.zoom = newZoom;
-        applyTransform();
-        showZoomBadge();
-      } else if (e.touches.length === 1) {
-        const dx = e.touches[0].clientX - touchState.singleTouchStartX;
-        const dy = e.touches[0].clientY - touchState.singleTouchStartY;
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) touchState.moved = true;
-        state.panX = touchState.startPanX + dx;
-        state.panY = touchState.startPanY + dy;
-        applyTransform();
-      }
-    }, { passive: false });
-
-    viewerContainer.addEventListener('touchend', () => {
-      touchState.active = false;
-    });
-
-        // ===== CONTROL DE MODOS =====
+    // --- CONTROL DE MODOS ---
     function setMode(mode) {
-      state.currentMode = mode;
-      Object.entries(modeButtons).forEach(([k, btn]) => {
-        btn.classList.remove('active');
-        btn.classList.add('text-slate-400');
+      currentMode = mode;
+      
+      // Reset estilos
+      [modeView, modeDraw, modeText].forEach(b => {
+        b.className = "px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white transition";
       });
-      modeButtons[mode].classList.add('active');
-      modeButtons[mode].classList.remove('text-slate-400');
 
       if (mode === 'view') {
-        drawCanvas.classList.remove('active');
+        modeView.className = "px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition";
+        drawCanvas.style.pointerEvents = 'none';
         drawTools.classList.add('hidden');
-        deselectItem();
       } else if (mode === 'draw') {
-        drawCanvas.classList.add('active');
+        modeDraw.className = "px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition";
+        drawCanvas.style.pointerEvents = 'auto';
         drawTools.classList.remove('hidden');
-        deselectItem();
       } else if (mode === 'text') {
-        drawCanvas.classList.add('active');
+        modeText.className = "px-3 py-1.5 rounded text-xs font-medium bg-blue-600 text-white transition";
+        drawCanvas.style.pointerEvents = 'auto';
         drawTools.classList.add('hidden');
       }
     }
 
-    modeButtons.view.addEventListener('click', () => setMode('view'));
-    modeButtons.draw.addEventListener('click', () => setMode('draw'));
-    modeButtons.text.addEventListener('click', () => setMode('text'));
+    modeView.addEventListener('click', () => setMode('view'));
+    modeDraw.addEventListener('click', () => setMode('draw'));
+    modeText.addEventListener('click', () => setMode('text'));
 
-    // ===== DIBUJO TÁCTIL Y RATÓN =====
+    // --- DIBUJO Y ANOTACIÓN EN CANVAS ---
     let isDrawing = false;
     let currentStroke = [];
 
     function getCanvasCoords(e) {
       const rect = drawCanvas.getBoundingClientRect();
-      const scaleX = drawCanvas.width / rect.width;
-      const scaleY = drawCanvas.height / rect.height;
-      const dpr = window.devicePixelRatio || 1;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       return {
-        x: (clientX - rect.left) * scaleX / dpr,
-        y: (clientY - rect.top) * scaleY / dpr,
+        x: clientX - rect.left,
+        y: clientY - rect.top
       };
     }
 
-    function startDraw(e) {
-      if (state.currentMode === 'text') {
-        addTextAt(e);
+    function startDrawing(e) {
+      if (currentMode === 'text') {
+        addTextAnnotation(e);
         return;
       }
-      if (state.currentMode !== 'draw') return;
-      e.preventDefault();
+      if (currentMode !== 'draw') return;
+
       isDrawing = true;
-      const c = getCanvasCoords(e);
-      currentStroke = [{ x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) }];
+      const coords = getCanvasCoords(e);
+      currentStroke = [{
+        x: coords.x,
+        y: coords.y,
+        color: drawColor.value,
+        size: parseInt(drawSize.value)
+      }];
     }
 
-    function moveDraw(e) {
-      if (!isDrawing || state.currentMode !== 'draw') return;
+    function draw(e) {
+      if (!isDrawing || currentMode !== 'draw') return;
       e.preventDefault();
-      const c = getCanvasCoords(e);
-      const point = { x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) };
+
+      const coords = getCanvasCoords(e);
+      const point = {
+        x: coords.x,
+        y: coords.y,
+        color: drawColor.value,
+        size: parseInt(drawSize.value)
+      };
+
       currentStroke.push(point);
 
+      // Dibujar segmento inmediato
       drawCtx.strokeStyle = point.color;
       drawCtx.lineWidth = point.size;
       drawCtx.lineCap = 'round';
       drawCtx.lineJoin = 'round';
-      const prev = currentStroke[currentStroke.length - 2];
+
+      const prevPoint = currentStroke[currentStroke.length - 2];
       drawCtx.beginPath();
-      drawCtx.moveTo(prev.x, prev.y);
+      drawCtx.moveTo(prevPoint.x, prevPoint.y);
       drawCtx.lineTo(point.x, point.y);
       drawCtx.stroke();
     }
 
-    function endDraw() {
+    function stopDrawing() {
       if (!isDrawing) return;
       isDrawing = false;
       if (currentStroke.length > 0) {
-        if (!state.pageDrawings[state.pageNum]) state.pageDrawings[state.pageNum] = [];
-        state.pageDrawings[state.pageNum].push(currentStroke);
+        if (!pageDrawings[pageNum]) pageDrawings[pageNum] = [];
+        pageDrawings[pageNum].push(currentStroke);
         currentStroke = [];
       }
     }
 
-    drawCanvas.addEventListener('mousedown', startDraw);
-    drawCanvas.addEventListener('mousemove', moveDraw);
-    drawCanvas.addEventListener('mouseup', endDraw);
-    drawCanvas.addEventListener('mouseleave', endDraw);
-    drawCanvas.addEventListener('touchstart', startDraw, { passive: false });
-    drawCanvas.addEventListener('touchmove', moveDraw, { passive: false });
-    drawCanvas.addEventListener('touchend', endDraw);
+    // Eventos Táctiles y Mouse
+    drawCanvas.addEventListener('mousedown', startDrawing);
+    drawCanvas.addEventListener('mousemove', draw);
+    drawCanvas.addEventListener('mouseup', stopDrawing);
 
-    // ===== TEXTO FLOTANTE (arrastrable, editable) =====
-    let textCounter = 0;
+    drawCanvas.addEventListener('touchstart', startDrawing);
+    drawCanvas.addEventListener('touchmove', draw);
+    drawCanvas.addEventListener('touchend', stopDrawing);
 
-    function addTextAt(e) {
-      const rect = drawCanvas.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-
-      const text = prompt('Ingrese el texto (o usa el dictado por voz):');
-      if (!text || !text.trim()) return;
-
-      const id = 'txt_' + (++textCounter) + '_' + Date.now();
-      const item = {
-        id,
-        type: 'text',
-        x, y,
-        text: text.trim(),
-        color: drawColor.value,
-        size: 16,
-      };
-      if (!state.pageTexts[state.pageNum]) state.pageTexts[state.pageNum] = [];
-      state.pageTexts[state.pageNum].push(item);
-      renderFloatingItems();
+    // --- AGREGAR TEXTO ---
+    function addTextAnnotation(e) {
+      const coords = getCanvasCoords(e);
+      const text = prompt('Ingrese el texto que desea agregar:');
+      if (text && text.trim() !== '') {
+        if (!pageTexts[pageNum]) pageTexts[pageNum] = [];
+        pageTexts[pageNum].push({
+          x: coords.x,
+          y: coords.y,
+          text: text.trim(),
+          color: drawColor.value,
+          size: 16
+        });
+        redrawAnnotations();
+      }
     }
 
-    function addTextFromVoice(text) {
-      if (!text || !text.trim()) return;
-      const id = 'txt_' + (++textCounter) + '_' + Date.now();
-      const item = {
-        id,
-        type: 'text',
-        x: 40,
-        y: 40,
-        text: text.trim(),
-        color: drawColor.value,
-        size: 16,
-      };
-      if (!state.pageTexts[state.pageNum]) state.pageTexts[state.pageNum] = [];
-      state.pageTexts[state.pageNum].push(item);
-      renderFloatingItems();
-    }
-
-    // ===== IMÁGENES FLOTANTES =====
-    let imgCounter = 0;
-
-    function addImageFromDataUrl(dataUrl, w, h) {
-      const id = 'img_' + (++imgCounter) + '_' + Date.now();
-      const item = {
-        id,
-        type: 'image',
-        x: 40,
-        y: 40,
-        width: w || 200,
-        height: h || 200,
-        src: dataUrl,
-      };
-      if (!state.pageImages[state.pageNum]) state.pageImages[state.pageNum] = [];
-      state.pageImages[state.pageNum].push(item);
-      renderFloatingItems();
-    }
-
-    // ===== RENDERIZADO DE ELEMENTOS FLOTANTES =====
-    function redrawAllAnnotations() {
-      // Trazos
+    // --- RE-DIBUJAR ANOTACIONES GUARDADAS EN PÁGINA ---
+    function redrawAnnotations() {
       drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-      const strokes = state.pageDrawings[state.pageNum] || [];
+
+      // Re-dibujar trazos
+      const strokes = pageDrawings[pageNum] || [];
       strokes.forEach(stroke => {
         if (stroke.length < 2) return;
         drawCtx.strokeStyle = stroke[0].color;
         drawCtx.lineWidth = stroke[0].size;
         drawCtx.lineCap = 'round';
         drawCtx.lineJoin = 'round';
+
         drawCtx.beginPath();
         drawCtx.moveTo(stroke[0].x, stroke[0].y);
-        for (let i = 1; i < stroke.length; i++) drawCtx.lineTo(stroke[i].x, stroke[i].y);
+        for (let i = 1; i < stroke.length; i++) {
+          drawCtx.lineTo(stroke[i].x, stroke[i].y);
+        }
         drawCtx.stroke();
       });
-      renderFloatingItems();
-    }
 
-    function renderFloatingItems() {
-      // Eliminar elementos flotantes previos
-      pdfWrapper.querySelectorAll('.floating-item').forEach(el => el.remove());
-
-      const container = pdfWrapper.querySelector('.canvas-container');
-      const dpr = window.devicePixelRatio || 1;
-      const scaleFactor = dpr; // coordenadas en píxeles CSS
-
-      // Textos
-      (state.pageTexts[state.pageNum] || []).forEach(item => {
-        const el = document.createElement('div');
-        el.className = 'floating-item floating-text' + (state.selectedItem === item.id ? ' selected' : '');
-        el.dataset.id = item.id;
-        el.dataset.type = 'text';
-        el.style.left = item.x + 'px';
-        el.style.top = item.y + 'px';
-        el.style.color = item.color;
-        el.style.fontSize = item.size + 'px';
-        el.textContent = item.text;
-        container.appendChild(el);
-        attachItemHandlers(el, item);
-      });
-
-      // Imágenes
-      (state.pageImages[state.pageNum] || []).forEach(item => {
-        const el = document.createElement('div');
-        el.className = 'floating-item floating-img' + (state.selectedItem === item.id ? ' selected' : '');
-        el.dataset.id = item.id;
-        el.dataset.type = 'image';
-        el.style.left = item.x + 'px';
-        el.style.top = item.y + 'px';
-        el.style.width = item.width + 'px';
-        el.style.height = item.height + 'px';
-        const img = document.createElement('img');
-        img.src = item.src;
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'contain';
-        el.appendChild(img);
-        container.appendChild(el);
-        attachItemHandlers(el, item);
+      // Re-dibujar textos
+      const texts = pageTexts[pageNum] || [];
+      texts.forEach(item => {
+        drawCtx.font = `${item.size}px sans-serif`;
+        drawCtx.fillStyle = item.color;
+        drawCtx.fillText(item.text, item.x, item.y);
       });
     }
 
-    // ===== ARRASTRAR Y SELECCIONAR ELEMENTOS =====
-    function attachItemHandlers(el, item) {
-      let dragging = false;
-      let startX = 0, startY = 0, origX = 0, origY = 0;
-
-      const onStart = (e) => {
-        if (state.currentMode !== 'text') return;
-        e.stopPropagation();
-        e.preventDefault();
-        selectItem(item.id);
-        dragging = true;
-        const p = e.touches ? e.touches[0] : e;
-        startX = p.clientX;
-        startY = p.clientY;
-        origX = item.x;
-        origY = item.y;
-      };
-
-      const onMove = (e) => {
-        if (!dragging) return;
-        e.preventDefault();
-        const p = e.touches ? e.touches[0] : e;
-        const dx = (p.clientX - startX) / state.zoom;
-        const dy = (p.clientY - startY) / state.zoom;
-        item.x = origX + dx;
-        item.y = origY + dy;
-        el.style.left = item.x + 'px';
-        el.style.top = item.y + 'px';
-      };
-
-      const onEnd = () => { dragging = false; };
-
-      el.addEventListener('mousedown', onStart);
-      el.addEventListener('touchstart', onStart, { passive: false });
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('mouseup', onEnd);
-      document.addEventListener('touchend', onEnd);
-    }
-
-    function selectItem(id) {
-      deselectItem();
-      state.selectedItem = id;
-      const el = pdfWrapper.querySelector(`.floating-item[data-id="${id}"]`);
-      if (el) {
-        el.classList.add('selected');
-        showItemToolbar(el, id);
-      }
-    }
-
-    function deselectItem() {
-      state.selectedItem = null;
-      pdfWrapper.querySelectorAll('.floating-item.selected').forEach(el => el.classList.remove('selected'));
-      pdfWrapper.querySelectorAll('.item-toolbar').forEach(el => el.remove());
-    }
-
-    function showItemToolbar(el, id) {
-      pdfWrapper.querySelectorAll('.item-toolbar').forEach(t => t.remove());
-      const toolbar = document.createElement('div');
-      toolbar.className = 'item-toolbar';
-
-      const editBtn = document.createElement('button');
-      editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
-      editBtn.title = 'Editar';
-      editBtn.onclick = (e) => { e.stopPropagation(); editItem(id); };
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'danger';
-      deleteBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
-      deleteBtn.title = 'Eliminar';
-      deleteBtn.onclick = (e) => { e.stopPropagation(); deleteItem(id); };
-
-      toolbar.appendChild(editBtn);
-
-      // Botones de tamaño para imágenes y texto
-      if (el.dataset.type === 'image') {
-        const smallerBtn = document.createElement('button');
-        smallerBtn.innerHTML = '<i class="fa-solid fa-minus"></i>';
-        smallerBtn.title = 'Más pequeño';
-        smallerBtn.onclick = (e) => { e.stopPropagation(); resizeItem(id, 0.85); };
-        toolbar.appendChild(smallerBtn);
-
-        const biggerBtn = document.createElement('button');
-        biggerBtn.innerHTML = '<i class="fa-solid fa-plus"></i>';
-        biggerBtn.title = 'Más grande';
-        biggerBtn.onclick = (e) => { e.stopPropagation(); resizeItem(id, 1.18); };
-        toolbar.appendChild(biggerBtn);
-      }
-
-      toolbar.appendChild(deleteBtn);
-      el.appendChild(toolbar);
-    }
-
-    function findItemById(id) {
-      const texts = state.pageTexts[state.pageNum] || [];
-      const images = state.pageImages[state.pageNum] || [];
-      return texts.find(t => t.id === id) || images.find(i => i.id === id);
-    }
-
-    function editItem(id) {
-      const item = findItemById(id);
-      if (!item) return;
-      if (item.type === 'text') {
-        const nuevo = prompt('Editar texto:', item.text);
-        if (nuevo && nuevo.trim()) {
-          item.text = nuevo.trim();
-          renderFloatingItems();
-        }
-      }
-    }
-
-    function deleteItem(id) {
-      state.pageTexts[state.pageNum] = (state.pageTexts[state.pageNum] || []).filter(t => t.id !== id);
-      state.pageImages[state.pageNum] = (state.pageImages[state.pageNum] || []).filter(i => i.id !== id);
-      deselectItem();
-      renderFloatingItems();
-    }
-
-    function resizeItem(id, factor) {
-      const item = findItemById(id);
-      if (!item || item.type !== 'image') return;
-      item.width *= factor;
-      item.height *= factor;
-      renderFloatingItems();
-    }
-
-    // Limpiar al tocar fuera
-    viewerContainer.addEventListener('mousedown', (e) => {
-      if (e.target === viewerContainer || e.target === pdfCanvas) deselectItem();
-    });
-    viewerContainer.addEventListener('touchstart', (e) => {
-      if (e.target === viewerContainer || e.target === pdfCanvas) deselectItem();
-    });
-
-    // Borrar anotaciones de la página
     clearCanvasBtn.addEventListener('click', () => {
-      if (confirm('¿Borrar dibujos, textos e imágenes de esta página?')) {
-        state.pageDrawings[state.pageNum] = [];
-        state.pageTexts[state.pageNum] = [];
-        state.pageImages[state.pageNum] = [];
-        redrawAllAnnotations();
+      if (confirm('¿Desea borrar las anotaciones de esta página?')) {
+        pageDrawings[pageNum] = [];
+        pageTexts[pageNum] = [];
+        redrawAnnotations();
       }
     });
 
-        // ===== MENÚ AVANZADO =====
-    menuBtn.addEventListener('click', () => {
-      advancedMenu.classList.toggle('hidden');
-    });
-
-    // ===== DICTADO POR VOZ =====
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let voiceActive = false;
-
-    const voiceModal = $('voiceModal');
-    const voiceStatus = $('voiceStatus');
-    const voiceText = $('voiceText');
-    const voiceStartBtn = $('voiceStartBtn');
-    const voiceStopBtn = $('voiceStopBtn');
-    const voiceInsertBtn = $('voiceInsertBtn');
-    const voiceModalClose = $('voiceModalClose');
-
-    function openVoiceModal() {
-      if (!SpeechRecognition) {
-        alert('Tu navegador no soporta dictado por voz. Prueba con Chrome o Edge.');
-        return;
-      }
-      voiceModal.classList.remove('hidden');
-      voiceText.textContent = '';
-      voiceStatus.textContent = 'Pulsa "Iniciar" y habla claramente.';
-    }
-
-    $('voiceBtnGlobal').addEventListener('click', openVoiceModal);
-    voiceModalClose.addEventListener('click', () => {
-      stopVoice();
-      voiceModal.classList.add('hidden');
-    });
-
-    function startVoice() {
-      if (!SpeechRecognition) return;
-      recognition = new SpeechRecognition();
-      recognition.lang = 'es-ES';
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      let finalTranscript = voiceText.textContent;
-
-      recognition.onstart = () => {
-        voiceActive = true;
-        voiceStatus.textContent = 'Escuchando... habla ahora.';
-        voiceStartBtn.classList.add('hidden');
-        voiceStopBtn.classList.remove('hidden');
-      };
-
-      recognition.onresult = (event) => {
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
-          } else {
-            interim += transcript;
-          }
-        }
-        voiceText.textContent = finalTranscript + interim;
-      };
-
-      recognition.onerror = (event) => {
-        voiceStatus.textContent = 'Error: ' + event.error;
-        stopVoice();
-      };
-
-      recognition.onend = () => {
-        voiceActive = false;
-        voiceStartBtn.classList.remove('hidden');
-        voiceStopBtn.classList.add('hidden');
-        if (voiceStatus.textContent === 'Escuchando... habla ahora.') {
-          voiceStatus.textContent = 'Dictado detenido.';
-        }
-      };
-
-      recognition.start();
-    }
-
-    function stopVoice() {
-      if (recognition && voiceActive) {
-        recognition.stop();
-      }
-    }
-
-    voiceStartBtn.addEventListener('click', startVoice);
-    voiceStopBtn.addEventListener('click', stopVoice);
-
-    voiceInsertBtn.addEventListener('click', () => {
-      const text = voiceText.textContent.trim();
-      if (!text) {
-        alert('No hay texto dictado para insertar.');
-        return;
-      }
-      addTextFromVoice(text);
-      voiceModal.classList.add('hidden');
-      // Cambiar a modo texto para que el usuario pueda moverlo
-      setMode('text');
-    });
-
-    // ===== INSERTAR IMÁGENES DESDE GALERÍA =====
-    const imageInput = $('imageInput');
-    $('insertImgBtn').addEventListener('click', () => imageInput.click());
-
-    imageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file || !file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const img = new Image();
-        img.onload = () => {
-          // Escalar la imagen para que no sea gigante
-          const maxW = 400;
-          let w = img.width, h = img.height;
-          if (w > maxW) {
-            h = h * (maxW / w);
-            w = maxW;
-          }
-          addImageFromDataUrl(evt.target.result, w, h);
-          setMode('text');
-        };
-        img.src = evt.target.result;
-      };
-      reader.readAsDataURL(file);
-      imageInput.value = '';
-    });
-
-    // ===== EXPORTAR A PNG =====
-    $('exportPngBtn').addEventListener('click', () => {
-      if (!state.pdfDoc) { alert('Abre un PDF primero.'); return; }
-      try {
-        // Crear un canvas temporal con el PDF + anotaciones
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = pdfCanvas.width;
-        tempCanvas.height = pdfCanvas.height;
-        const tctx = tempCanvas.getContext('2d');
-        tctx.drawImage(pdfCanvas, 0, 0);
-        tctx.drawImage(drawCanvas, 0, 0);
-
-        // Añadir textos e imágenes flotantes
-        const dpr = window.devicePixelRatio || 1;
-        (state.pageTexts[state.pageNum] || []).forEach(item => {
-          tctx.font = `${item.size * dpr}px sans-serif`;
-          tctx.fillStyle = item.color;
-          tctx.fillText(item.text, item.x * dpr, (item.y + item.size) * dpr);
-        });
-
-        // Las imágenes flotantes requieren carga async, así que las procesamos con Promise
-        const imagePromises = (state.pageImages[state.pageNum] || []).map(item => {
-          return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => {
-              tctx.drawImage(img, item.x * dpr, item.y * dpr, item.width * dpr, item.height * dpr);
-              resolve();
-            };
-            img.onerror = () => resolve();
-            img.src = item.src;
-          });
-        });
-
-        Promise.all(imagePromises).then(() => {
-          const dataUrl = tempCanvas.toDataURL('image/png');
-          const link = document.createElement('a');
-          link.href = dataUrl;
-          link.download = `pagina_${state.pageNum}.png`;
-          link.click();
-        });
-      } catch (err) {
-        alert('Error al exportar PNG: ' + err.message);
-      }
-    });
-
-    // ===== EXPORTAR A TXT =====
-    $('exportTxtBtn').addEventListener('click', async () => {
-      if (!state.pdfDoc) { alert('Abre un PDF primero.'); return; }
-      try {
-        let fullText = '';
-        for (let i = 1; i <= state.pageCount; i++) {
-          const page = await state.pdfDoc.getPage(i);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items.map(item => item.str).join(' ');
-          fullText += `--- Página ${i} ---\n${pageText}\n\n`;
-        }
-        const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'documento_extraido.txt';
-        link.click();
-      } catch (err) {
-        alert('Error al exportar TXT: ' + err.message);
-      }
-    });
-
-        // ===== GUARDAR PDF CON ANOTACIONES =====
+    // --- GUARDAR Y EXPORTAR PDF EDICIÓN CON PDF-LIB ---
     downloadBtn.addEventListener('click', async () => {
-      if (!state.rawPdfBytes) return;
-      const originalHTML = downloadBtn.innerHTML;
-      downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span class="hidden sm:inline">Guardando...</span>';
+      if (!rawPdfBytes) return;
+
+      downloadBtn.textContent = 'Guardando...';
       downloadBtn.disabled = true;
 
       try {
-        const { PDFDocument, rgb, degrees } = PDFLib;
-        const pdfDocEdit = await PDFDocument.load(state.rawPdfBytes, { ignoreEncryption: true });
+        const { PDFDocument, rgb } = PDFLib;
+        const pdfDocEdit = await PDFDocument.load(rawPdfBytes);
         const pages = pdfDocEdit.getPages();
 
         for (let i = 0; i < pages.length; i++) {
-          const pageNum = i + 1;
+          const currentPageNum = i + 1;
           const page = pages[i];
           const { width, height } = page.getSize();
 
-          // Necesitamos el viewport de esa página para escalar correctamente
-          const pdfPage = await state.pdfDoc.getPage(pageNum);
-          const rotation = state.pageRotations[pageNum] || 0;
-          const viewport = pdfPage.getViewport({ scale: 1, rotation: rotation });
-          const scaleX = width / viewport.width;
-          const scaleY = height / viewport.height;
+          // Relación de escala entre el canvas de la PWA y las dimensiones reales del PDF
+          const scaleX = width / pdfCanvas.width;
+          const scaleY = height / pdfCanvas.height;
 
-          // Trazos
-          const strokes = state.pageDrawings[pageNum] || [];
+          // Incrustar trazos
+          const strokes = pageDrawings[currentPageNum] || [];
           strokes.forEach(stroke => {
             for (let j = 0; j < stroke.length - 1; j++) {
-              const p1 = stroke[j], p2 = stroke[j + 1];
+              const p1 = stroke[j];
+              const p2 = stroke[j + 1];
+
+              // Convertir color Hex a RGB pdf-lib
               const hex = p1.color.replace('#', '');
               const r = parseInt(hex.substring(0, 2), 16) / 255;
               const g = parseInt(hex.substring(2, 4), 16) / 255;
               const b = parseInt(hex.substring(4, 6), 16) / 255;
+
               page.drawLine({
                 start: { x: p1.x * scaleX, y: height - (p1.y * scaleY) },
                 end: { x: p2.x * scaleX, y: height - (p2.y * scaleY) },
                 thickness: p1.size * scaleX,
                 color: rgb(r, g, b),
-                opacity: 0.9,
+                opacity: 0.8
               });
             }
           });
 
-          // Textos
-          const texts = state.pageTexts[pageNum] || [];
+          // Incrustar textos
+          const texts = pageTexts[currentPageNum] || [];
           texts.forEach(item => {
             const hex = item.color.replace('#', '');
             const r = parseInt(hex.substring(0, 2), 16) / 255;
             const g = parseInt(hex.substring(2, 4), 16) / 255;
             const b = parseInt(hex.substring(4, 6), 16) / 255;
+
             page.drawText(item.text, {
               x: item.x * scaleX,
-              y: height - (item.y * scaleY) - item.size * scaleY,
-              size: item.size * scaleY,
-              color: rgb(r, g, b),
+              y: height - (item.y * scaleY),
+              size: item.size * scaleX,
+              color: rgb(r, g, b)
             });
           });
-
-          // Imágenes
-          const images = state.pageImages[pageNum] || [];
-          for (const item of images) {
-            try {
-              const imgBytes = await fetch(item.src).then(r => r.arrayBuffer());
-              let embedded;
-              if (item.src.startsWith('data:image/png')) {
-                embedded = await pdfDocEdit.embedPng(imgBytes);
-              } else {
-                embedded = await pdfDocEdit.embedJpg(imgBytes);
-              }
-              page.drawImage(embedded, {
-                x: item.x * scaleX,
-                y: height - (item.y + item.height) * scaleY,
-                width: item.width * scaleX,
-                height: item.height * scaleY,
-              });
-            } catch (e) {
-              console.warn('No se pudo incrustar imagen:', e);
-            }
-          }
         }
-
-        // Manejar rotaciones y eliminación de páginas
-        for (let i = 0; i < pages.length; i++) {
-          const pageNum = i + 1;
-          if (state.pageRotations[pageNum]) {
-            const currentRot = pages[i].getRotation().angle || 0;
-            pages[i].setRotation(degrees(currentRot + state.pageRotations[pageNum]));
-          }
-        }
-
-        // Eliminar páginas marcadas (de mayor a menor índice para no descolocar)
-        const toDelete = Array.from(state.deletedPages).sort((a, b) => b - a);
-        toDelete.forEach(n => {
-          if (n >= 1 && n <= pages.length) pdfDocEdit.removePage(n - 1);
-        });
 
         const modifiedPdfBytes = await pdfDocEdit.save();
         const blob = new Blob([modifiedPdfBytes], { type: 'application/pdf' });
@@ -1365,153 +482,21 @@
         link.href = URL.createObjectURL(blob);
         link.download = 'documento_editado.pdf';
         link.click();
+
       } catch (err) {
-        alert('Error al exportar: ' + err.message);
-        console.error(err);
+        alert('Ocurrió un error al exportar el PDF: ' + err.message);
       } finally {
-        downloadBtn.innerHTML = originalHTML;
+        downloadBtn.innerHTML = '<i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Guardar</span>';
         downloadBtn.disabled = false;
       }
     });
 
-    // ===== ROTAR PÁGINA ACTUAL =====
-    $('rotatePageBtn').addEventListener('click', () => {
-      if (!state.pdfDoc) return;
-      state.pageRotations[state.pageNum] = ((state.pageRotations[state.pageNum] || 0) + 90) % 360;
-      renderPage(state.pageNum);
-    });
-
-    // ===== BORRAR PÁGINA ACTUAL =====
-    $('deletePageBtn').addEventListener('click', () => {
-      if (!state.pdfDoc) return;
-      if (state.pageCount <= 1) {
-        alert('No puedes borrar la única página del documento.');
-        return;
-      }
-      if (!confirm(`¿Borrar la página ${state.pageNum}?`)) return;
-
-      state.deletedPages.add(state.pageNum);
-      // Marcar visualmente (podríamos ocultar la página) y avanzar
-      if (state.pageNum < state.pageCount) {
-        state.pageNum++;
-      } else {
-        state.pageNum--;
-      }
-      renderPage(state.pageNum);
-      alert('Página marcada para borrar. Se eliminará al guardar el PDF.');
-    });
-
-    // ===== CREAR PDF NUEVO DESDE CERO =====
-    $('newPdfBtn').addEventListener('click', async () => {
-      if (!confirm('¿Crear un PDF en blanco nuevo? Se reemplazará el actual.')) return;
-      try {
-        const { PDFDocument } = PDFLib;
-        const newDoc = await PDFDocument.create();
-        newDoc.addPage([595.28, 841.89]); // A4
-        const bytes = await newDoc.save();
-
-        state.rawPdfBytes = bytes;
-        state.pageDrawings = {};
-        state.pageTexts = {};
-        state.pageImages = {};
-        state.pageRotations = {};
-        state.deletedPages = new Set();
-
-        initPdfDocument(bytes);
-        advancedMenu.classList.add('hidden');
-      } catch (err) {
-        alert('Error al crear PDF: ' + err.message);
+    // Escuchar archivos compartidos desde el Service Worker (ej. WhatsApp)
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.file) {
+        loadPdfFile(event.data.file);
       }
     });
-
-        // ===== RECEPCIÓN DESDE WHATSAPP (IndexedDB) =====
-    async function checkSharedFile() {
-      try {
-        const db = await new Promise((resolve, reject) => {
-          const req = indexedDB.open('PDFReaderDB', 1);
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error);
-        });
-
-        if (!db.objectStoreNames.contains('sharedFiles')) return;
-
-        const tx = db.transaction('sharedFiles', 'readonly');
-        const store = tx.objectStore('sharedFiles');
-        const getAllReq = store.getAll();
-
-        getAllReq.onsuccess = () => {
-          const records = getAllReq.result;
-          if (records && records.length > 0) {
-            // Tomar el más reciente
-            const latest = records.sort((a, b) => b.timestamp - a.timestamp)[0];
-            if (latest && latest.blob) {
-              loadPdfFile(latest.blob);
-              // Limpiar después de cargar
-              const delTx = db.transaction('sharedFiles', 'readwrite');
-              delTx.objectStore('sharedFiles').delete(latest.id);
-            }
-          }
-        };
-      } catch (e) {
-        console.warn('No se pudo comprobar archivo compartido:', e);
-      }
-    }
-
-    // Escuchar mensajes del Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'SHARE_PDF') {
-          checkSharedFile();
-        }
-      });
-    }
-
-    // Comprobar al cargar la página (por si venimos de un redirect de WhatsApp)
-    window.addEventListener('load', () => {
-      const params = new URLSearchParams(location.search);
-      if (params.get('shared') === '1') {
-        checkSharedFile();
-      }
-      // También comprobar siempre por si acaso
-      setTimeout(checkSharedFile, 1500);
-    });
-
-    // ===== CONVERSIÓN (guía, no código ejecutable directo) =====
-    // La conversión real a Word/Excel/PPTX requiere integrar PDFto.Tools
-    // Ver instrucciones debajo del código.
-    const convertModal = $('convertModal');
-    const convertStatus = $('convertStatus');
-    const convertModalClose = $('convertModalClose');
-
-       // ===== CONVERSIÓN (abre la web oficial de PDFto.Tools) =====
-    $('convertBtn').addEventListener('click', () => {
-      // Abre la web oficial en una nueva pestaña. El usuario sube su PDF allí.
-      window.open('https://pdfto.tools', '_blank');
-    });
-
-    // El modal de conversión ya no se usa, pero lo dejamos por si acaso
-    const convertModal = $('convertModal');
-    const convertModalClose = $('convertModalClose');
-    if (convertModalClose) {
-      convertModalClose.addEventListener('click', () => {
-        convertModal.classList.add('hidden');
-      });
-    }
-
-    convertModalClose.addEventListener('click', () => {
-      convertModal.classList.add('hidden');
-    });
-
-    // Los botones de conversión muestran el estado
-    document.querySelectorAll('[data-convert]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const format = btn.dataset.convert;
-        convertStatus.textContent = `Conversión a ${format.toUpperCase()} requiere PDFto.Tools. Consulta las instrucciones en el archivo README.`;
-      });
-    });
-
   </script>
 </body>
 </html>
-
-  
