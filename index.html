@@ -18,24 +18,25 @@
     html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
     body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
-    /* VISOR PRINCIPAL CON SCROLL NATIVO */
+    /* VISOR PRINCIPAL */
     #viewerContainer { 
       position: relative; 
-      overflow: auto; /* Scroll nativo para el celular */
+      overflow: auto; 
       background: #020617;
       flex: 1; 
       width: 100%;
       height: 100%;
-      -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+      -webkit-overflow-scrolling: touch;
     }
 
     /* EL CONTENEDOR DEL PDF (oculto hasta que cargue) */
     #pdfWrapper { 
       display: none; 
       position: relative; 
-      margin: 20px auto; /* Centrado con margen */
+      margin: 10px auto; 
       padding: 0;
-      width: max-content; /* Se ajusta al contenido */
+      width: 96%; /* Ocupa casi todo el ancho, sin importar el tamaño del PDF */
+      max-width: 900px;
     }
     
     #pdfWrapper.loaded { 
@@ -45,14 +46,16 @@
     .canvas-container { 
       position: relative; 
       display: block; 
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); 
-      border-radius: 6px; 
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); 
+      border-radius: 4px; 
       overflow: hidden; 
       background: white; 
+      width: 100%; /* El contenedor siempre ocupa el 100% del ancho del wrapper */
     }
     
-    #pdfCanvas { display: block; width: 100%; height: auto; }
-    #drawCanvas { position: absolute; top: 0; left: 0; pointer-events: none; touch-action: none; }
+    /* EL TRUCO: Las canvas se adaptan al 100% del ancho y mantienen la proporción */
+    #pdfCanvas { display: block; width: 100% !important; height: auto !important; }
+    #drawCanvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: none; touch-action: none; }
     #drawCanvas.active { pointer-events: auto; }
 
     .floating-item { position: absolute; cursor: move; user-select: none; touch-action: none; z-index: 5; }
@@ -245,7 +248,7 @@
     }
 
     // RENDERIZADO NUEVO (Basado en ancho de pantalla)
-    function renderPage(num) {
+      function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
       state.pdfDoc.getPage(num).then((page) => {
@@ -253,36 +256,15 @@
         const viewport = page.getViewport({ scale: 1, rotation: rotation });
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        // Calculamos cuánto espacio real hay en la pantalla
-        const containerWidth = viewerContainer.clientWidth || window.innerWidth;
-        // Ajustamos para que quepa al 95% del ancho de la pantalla
-        const maxWidth = containerWidth * 0.95; 
-        const scale = maxWidth / viewport.width;
-
-        // Configuramos el tamaño visual del canvas
-        const finalWidth = viewport.width * scale;
-        const finalHeight = viewport.height * scale;
-
-        // Configuramos el canvas de dibujo interno
+        // El canvas interno tendrá una resolución buena (basada en dpr)
         pdfCanvas.width = Math.floor(viewport.width * dpr);
         pdfCanvas.height = Math.floor(viewport.height * dpr);
-        pdfCanvas.style.width = finalWidth + 'px';
-        pdfCanvas.style.height = finalHeight + 'px';
 
-        // El canvas de dibujo para anotaciones
         drawCanvas.width = Math.floor(viewport.width * dpr);
         drawCanvas.height = Math.floor(viewport.height * dpr);
-        drawCanvas.style.width = finalWidth + 'px';
-        drawCanvas.style.height = finalHeight + 'px';
 
-        // Configuramos contexto para la resolución correcta
         pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        // El contenedor se ajusta al tamaño final
-        const container = pdfWrapper.querySelector('.canvas-container');
-        container.style.width = finalWidth + 'px';
-        container.style.height = finalHeight + 'px';
 
         const renderContext = {
           canvasContext: pdfCtx,
@@ -294,8 +276,7 @@
           state.rendering = false;
           if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
           redrawAllAnnotations();
-          // Enfocar arriba al cargar
-          viewerContainer.scrollTop = 0;
+          viewerContainer.scrollTop = 0; // Reiniciar scroll al cargar
         });
       });
       pageNumElem.textContent = num;
