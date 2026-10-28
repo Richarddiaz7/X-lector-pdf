@@ -18,19 +18,40 @@
     html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
     body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
-    /* VISOR PRINCIPAL (Arreglado para móviles) */
+    /* VISOR PRINCIPAL CON SCROLL NATIVO */
     #viewerContainer { 
       position: relative; 
-      overflow: hidden; 
-      touch-action: none; 
+      overflow: auto; /* Scroll nativo para el celular */
       background: #020617;
       flex: 1; 
       width: 100%;
       height: 100%;
+      -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
     }
-    #pdfWrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; display: inline-block; }
-    .canvas-container { position: relative; display: block; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); border-radius: 6px; overflow: hidden; background: white; }
-    #pdfCanvas { display: block; }
+
+    /* EL CONTENEDOR DEL PDF (oculto hasta que cargue) */
+    #pdfWrapper { 
+      display: none; 
+      position: relative; 
+      margin: 20px auto; /* Centrado con margen */
+      padding: 0;
+      width: max-content; /* Se ajusta al contenido */
+    }
+    
+    #pdfWrapper.loaded { 
+      display: block; 
+    }
+
+    .canvas-container { 
+      position: relative; 
+      display: block; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); 
+      border-radius: 6px; 
+      overflow: hidden; 
+      background: white; 
+    }
+    
+    #pdfCanvas { display: block; width: 100%; height: auto; }
     #drawCanvas { position: absolute; top: 0; left: 0; pointer-events: none; touch-action: none; }
     #drawCanvas.active { pointer-events: auto; }
 
@@ -114,7 +135,7 @@
     </div>
   </div>
 
-  <main class="flex-1 relative bg-slate-950 overflow-hidden" id="viewerContainer">
+  <main class="flex-1 relative bg-slate-950" id="viewerContainer">
     <div id="emptyState" class="absolute inset-0 flex items-center justify-center p-4 z-10">
       <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center max-w-md text-center">
         <i class="fa-solid fa-file-circle-plus text-5xl text-blue-500 mb-4"></i>
@@ -125,7 +146,7 @@
         </label>
       </div>
     </div>
-    <div id="pdfWrapper" class="hidden">
+    <div id="pdfWrapper">
       <div class="canvas-container"><canvas id="pdfCanvas"></canvas><canvas id="drawCanvas"></canvas></div>
     </div>
     <div id="zoomBadge">100%</div>
@@ -171,7 +192,7 @@
 
     const state = {
       rawPdfBytes: null, pdfDoc: null, pageNum: 1, pageCount: 0,
-      baseScale: 1.0, zoom: 1.0, panX: 0, panY: 0,
+      zoom: 1.0, panX: 0, panY: 0, // Conservamos el estado para no romper otras funciones
       currentMode: 'view', rendering: false, pendingPage: null,
       pageDrawings: {}, pageTexts: {}, pageImages: {}, pageRotations: {}, deletedPages: new Set(),
       selectedItem: null
@@ -216,52 +237,56 @@
         state.deletedPages = new Set();
         pageCountElem.textContent = doc.numPages;
         emptyState.classList.add('hidden');
-        pdfWrapper.classList.remove('hidden');
+        pdfWrapper.classList.add('loaded'); // Mostrar contenedor
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         renderPage(state.pageNum);
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
-    // ===== RENDERIZADO CORREGIDO PARA MÓVILES =====
-       function renderPage(num) {
+    // RENDERIZADO NUEVO (Basado en ancho de pantalla)
+    function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
-        const baseViewport = page.getViewport({ scale: 1, rotation: rotation });
-        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Evita que colapse la memoria
+        const viewport = page.getViewport({ scale: 1, rotation: rotation });
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-        // --- ARREGLO PARA EL CELULAR ---
-        // Medimos el ancho de la pantalla y ajustamos el PDF al 95% de ese ancho.
+        // Calculamos cuánto espacio real hay en la pantalla
         const containerWidth = viewerContainer.clientWidth || window.innerWidth;
+        // Ajustamos para que quepa al 95% del ancho de la pantalla
         const maxWidth = containerWidth * 0.95; 
-        const scaleFit = maxWidth / baseViewport.width;
+        const scale = maxWidth / viewport.width;
 
-        // Calculamos el tamaño visual que tendrá en pantalla
-        const finalWidth = baseViewport.width * scaleFit;
-        const finalHeight = baseViewport.height * scaleFit;
+        // Configuramos el tamaño visual del canvas
+        const finalWidth = viewport.width * scale;
+        const finalHeight = viewport.height * scale;
 
-        // Resolución interna del canvas (calidad del dibujo)
-        pdfCanvas.width = Math.floor(baseViewport.width * dpr);
-        pdfCanvas.height = Math.floor(baseViewport.height * dpr);
+        // Configuramos el canvas de dibujo interno
+        pdfCanvas.width = Math.floor(viewport.width * dpr);
+        pdfCanvas.height = Math.floor(viewport.height * dpr);
         pdfCanvas.style.width = finalWidth + 'px';
         pdfCanvas.style.height = finalHeight + 'px';
-        pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        drawCanvas.width = Math.floor(baseViewport.width * dpr);
-        drawCanvas.height = Math.floor(baseViewport.height * dpr);
+        // El canvas de dibujo para anotaciones
+        drawCanvas.width = Math.floor(viewport.width * dpr);
+        drawCanvas.height = Math.floor(viewport.height * dpr);
         drawCanvas.style.width = finalWidth + 'px';
         drawCanvas.style.height = finalHeight + 'px';
+
+        // Configuramos contexto para la resolución correcta
+        pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
         drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+        // El contenedor se ajusta al tamaño final
         const container = pdfWrapper.querySelector('.canvas-container');
         container.style.width = finalWidth + 'px';
         container.style.height = finalHeight + 'px';
 
         const renderContext = {
           canvasContext: pdfCtx,
-          viewport: baseViewport,
+          viewport: viewport,
           transform: [dpr, 0, 0, dpr, 0, 0]
         };
 
@@ -269,8 +294,8 @@
           state.rendering = false;
           if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
           redrawAllAnnotations();
-          // Aplicar el zoom y centrado con un pequeño retraso para que el celular termine de ajustar la pantalla
-          setTimeout(fitPageToScreen, 100); 
+          // Enfocar arriba al cargar
+          viewerContainer.scrollTop = 0;
         });
       });
       pageNumElem.textContent = num;
@@ -284,8 +309,10 @@
     $('prevPage').addEventListener('click', () => { if (state.pageNum > 1) { state.pageNum--; queueRenderPage(state.pageNum); } });
     $('nextPage').addEventListener('click', () => { if (state.pdfDoc && state.pageNum < state.pageCount) { state.pageNum++; queueRenderPage(state.pageNum); } });
 
+    // Mantenemos esto para que no fallen los botones de zoom, pero ahora afectan al CSS scale
     function applyTransform() {
-      pdfWrapper.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+      pdfWrapper.style.transform = `scale(${state.zoom})`;
+      pdfWrapper.style.transformOrigin = 'top left';
       zoomLevelElem.textContent = Math.round(state.zoom * 100) + '%';
       zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
     }
@@ -296,90 +323,14 @@
       showZoomBadge._t = setTimeout(() => zoomBadge.classList.remove('show'), 1200);
     }
 
-    function zoomAt(factor, centerX, centerY) {
-      const oldZoom = state.zoom;
-      let newZoom = Math.min(Math.max(oldZoom * factor, 0.3), 6.0);
-      if (newZoom === oldZoom) return;
-      if (centerX !== undefined && centerY !== undefined) {
-        const rect = viewerContainer.getBoundingClientRect();
-        const cx = centerX - rect.left, cy = centerY - rect.top;
-        state.panX = cx - (cx - state.panX) * (newZoom / oldZoom);
-        state.panY = cy - (cy - state.panY) * (newZoom / oldZoom);
-      }
-      state.zoom = newZoom;
+    function zoomAt(factor) {
+      state.zoom = Math.min(Math.max(state.zoom * factor, 0.5), 5.0);
       applyTransform(); showZoomBadge();
     }
 
-    // ===== AJUSTE CORREGIDO PARA MÓVILES =====
-      function fitPageToScreen() {
-      if (!pdfCanvas.width) return;
-      
-      const rect = viewerContainer.getBoundingClientRect();
-      const canvasW = parseFloat(pdfCanvas.style.width) || pdfCanvas.width;
-      const canvasH = parseFloat(pdfCanvas.style.height) || pdfCanvas.height;
-      
-      // Calcular el zoom exacto para que la hoja quepa a lo ancho
-      const scaleX = (rect.width - 32) / canvasW; 
-      const fit = scaleX; // Forzamos a que se ajuste al ancho de la pantalla
-      
-      state.zoom = fit;
-      
-      // Centrar la hoja horizontalmente y ponerla arriba
-      state.panX = (rect.width - (canvasW * fit)) / 2;
-      state.panY = 20; // Margen superior de 20px
-      
-      applyTransform(); 
-      showZoomBadge();
-    }
-    $('zoomIn').addEventListener('click', () => { const r = viewerContainer.getBoundingClientRect(); zoomAt(1.25, r.left + r.width/2, r.top + r.height/2); });
-    $('zoomOut').addEventListener('click', () => { const r = viewerContainer.getBoundingClientRect(); zoomAt(0.8, r.left + r.width/2, r.top + r.height/2); });
-    $('zoomReset').addEventListener('click', fitPageToScreen);
-
-    let touchState = { active: false, startDist: 0, startZoom: 1, startMidX: 0, startMidY: 0, startPanX: 0, startPanY: 0, singleX: 0, singleY: 0, lastTap: 0 };
-    function getTouchDist(t1, t2) { return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY); }
-    function getTouchMid(t1, t2) { return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 }; }
-
-    viewerContainer.addEventListener('touchstart', (e) => {
-      if (state.currentMode !== 'view') return;
-      if (e.touches.length === 2) {
-        e.preventDefault(); touchState.active = true;
-        touchState.startDist = getTouchDist(e.touches[0], e.touches[1]);
-        touchState.startZoom = state.zoom;
-        const mid = getTouchMid(e.touches[0], e.touches[1]);
-        touchState.startMidX = mid.x; touchState.startMidY = mid.y;
-        touchState.startPanX = state.panX; touchState.startPanY = state.panY;
-      } else if (e.touches.length === 1) {
-        touchState.active = true;
-        touchState.singleX = e.touches[0].clientX; touchState.singleY = e.touches[0].clientY;
-        touchState.startPanX = state.panX; touchState.startPanY = state.panY;
-        const now = Date.now();
-        if (now - touchState.lastTap < 300) { zoomAt(2.0, e.touches[0].clientX, e.touches[0].clientY); touchState.lastTap = 0; }
-        else { touchState.lastTap = now; }
-      }
-    }, { passive: false });
-
-    viewerContainer.addEventListener('touchmove', (e) => {
-      if (state.currentMode !== 'view' || !touchState.active) return;
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const dist = getTouchDist(e.touches[0], e.touches[1]);
-        let newZoom = Math.min(Math.max(touchState.startZoom * (dist / touchState.startDist), 0.3), 6.0);
-        const mid = getTouchMid(e.touches[0], e.touches[1]);
-        const rect = viewerContainer.getBoundingClientRect();
-        const cx = touchState.startMidX - rect.left, cy = touchState.startMidY - rect.top;
-        state.panX = cx - (cx - touchState.startPanX) * (newZoom / touchState.startZoom) + (mid.x - touchState.startMidX);
-        state.panY = cy - (cy - touchState.startPanY) * (newZoom / touchState.startZoom) + (mid.y - touchState.startMidY);
-        state.zoom = newZoom;
-        applyTransform(); showZoomBadge();
-      } else if (e.touches.length === 1) {
-        const dx = e.touches[0].clientX - touchState.singleX;
-        const dy = e.touches[0].clientY - touchState.singleY;
-        state.panX = touchState.startPanX + dx; state.panY = touchState.startPanY + dy;
-        applyTransform();
-      }
-    }, { passive: false });
-
-    viewerContainer.addEventListener('touchend', () => { touchState.active = false; });
+    $('zoomIn').addEventListener('click', () => zoomAt(1.25));
+    $('zoomOut').addEventListener('click', () => zoomAt(0.8));
+    $('zoomReset').addEventListener('click', () => { state.zoom = 1.0; applyTransform(); });
 
     function setMode(mode) {
       state.currentMode = mode;
