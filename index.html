@@ -18,7 +18,16 @@
     html, body { margin: 0; padding: 0; height: 100%; overscroll-behavior: none; }
     body { touch-action: manipulation; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
-    #viewerContainer { position: relative; overflow: hidden; touch-action: none; background: #020617; }
+    /* VISOR PRINCIPAL (Arreglado para móviles) */
+    #viewerContainer { 
+      position: relative; 
+      overflow: hidden; 
+      touch-action: none; 
+      background: #020617;
+      flex: 1; 
+      width: 100%;
+      height: 100%;
+    }
     #pdfWrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; display: inline-block; }
     .canvas-container { position: relative; display: block; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); border-radius: 6px; overflow: hidden; background: white; }
     #pdfCanvas { display: block; }
@@ -214,29 +223,41 @@
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
+    // ===== RENDERIZADO CORREGIDO PARA MÓVILES =====
     function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
         const baseViewport = page.getViewport({ scale: 1, rotation: rotation });
-        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Límite para evitar cuelgues
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
+        // Calcular el tamaño disponible real en el contenedor
+        const containerRect = viewerContainer.getBoundingClientRect();
+        const maxWidth = containerRect.width * 0.95;
+        const maxHeight = containerRect.height * 0.95;
+
+        // Escalar para que quepa en pantalla (ajuste tipo "contain")
+        const scaleFit = Math.min(maxWidth / baseViewport.width, maxHeight / baseViewport.height);
+        const finalWidth = baseViewport.width * scaleFit;
+        const finalHeight = baseViewport.height * scaleFit;
+
+        // Configurar canvas con resolución interna alta pero tamaño visual ajustado
         pdfCanvas.width = Math.floor(baseViewport.width * dpr);
         pdfCanvas.height = Math.floor(baseViewport.height * dpr);
-        pdfCanvas.style.width = baseViewport.width + 'px';
-        pdfCanvas.style.height = baseViewport.height + 'px';
+        pdfCanvas.style.width = finalWidth + 'px';
+        pdfCanvas.style.height = finalHeight + 'px';
         pdfCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         drawCanvas.width = Math.floor(baseViewport.width * dpr);
         drawCanvas.height = Math.floor(baseViewport.height * dpr);
-        drawCanvas.style.width = baseViewport.width + 'px';
-        drawCanvas.style.height = baseViewport.height + 'px';
+        drawCanvas.style.width = finalWidth + 'px';
+        drawCanvas.style.height = finalHeight + 'px';
         drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         const container = pdfWrapper.querySelector('.canvas-container');
-        container.style.width = baseViewport.width + 'px';
-        container.style.height = baseViewport.height + 'px';
+        container.style.width = finalWidth + 'px';
+        container.style.height = finalHeight + 'px';
 
         const renderContext = {
           canvasContext: pdfCtx,
@@ -248,7 +269,7 @@
           state.rendering = false;
           if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
           redrawAllAnnotations();
-          fitPageToScreen();
+          setTimeout(fitPageToScreen, 50); 
         });
       });
       pageNumElem.textContent = num;
@@ -288,16 +309,25 @@
       applyTransform(); showZoomBadge();
     }
 
+    // ===== AJUSTE CORREGIDO PARA MÓVILES =====
     function fitPageToScreen() {
       if (!pdfCanvas.width) return;
       const rect = viewerContainer.getBoundingClientRect();
       const canvasW = parseFloat(pdfCanvas.style.width) || pdfCanvas.width;
       const canvasH = parseFloat(pdfCanvas.style.height) || pdfCanvas.height;
-      const fit = Math.min((rect.width - 24) / canvasW, (rect.height - 24) / canvasH, 2.5);
+      
+      // Calcular zoom para que quepa con margen
+      const scaleX = (rect.width - 32) / canvasW;
+      const scaleY = (rect.height - 32) / canvasH;
+      const fit = Math.min(scaleX, scaleY);
+      
       state.zoom = fit;
-      state.panX = (rect.width - canvasW * fit) / 2;
-      state.panY = (rect.height - canvasH * fit) / 2;
-      applyTransform(); showZoomBadge();
+      // Centrar perfectamente
+      state.panX = (rect.width - (canvasW * fit)) / 2;
+      state.panY = (rect.height - (canvasH * fit)) / 2;
+      
+      applyTransform(); 
+      showZoomBadge();
     }
 
     $('zoomIn').addEventListener('click', () => { const r = viewerContainer.getBoundingClientRect(); zoomAt(1.25, r.left + r.width/2, r.top + r.height/2); });
