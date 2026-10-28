@@ -1483,10 +1483,20 @@
     const convertStatus = $('convertStatus');
     const convertModalClose = $('convertModalClose');
 
+       // ===== CONVERSIÓN (abre la web oficial de PDFto.Tools) =====
     $('convertBtn').addEventListener('click', () => {
-      convertModal.classList.remove('hidden');
-      convertStatus.textContent = 'PDFto.Tools debe integrarse por separado (ver instrucciones).';
+      // Abre la web oficial en una nueva pestaña. El usuario sube su PDF allí.
+      window.open('https://pdfto.tools', '_blank');
     });
+
+    // El modal de conversión ya no se usa, pero lo dejamos por si acaso
+    const convertModal = $('convertModal');
+    const convertModalClose = $('convertModalClose');
+    if (convertModalClose) {
+      convertModalClose.addEventListener('click', () => {
+        convertModal.classList.add('hidden');
+      });
+    }
 
     convertModalClose.addEventListener('click', () => {
       convertModal.classList.add('hidden');
