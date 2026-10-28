@@ -224,25 +224,25 @@
     }
 
     // ===== RENDERIZADO CORREGIDO PARA MÓVILES =====
-    function renderPage(num) {
+       function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
         const baseViewport = page.getViewport({ scale: 1, rotation: rotation });
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2); // Evita que colapse la memoria
 
-        // Calcular el tamaño disponible real en el contenedor
-        const containerRect = viewerContainer.getBoundingClientRect();
-        const maxWidth = containerRect.width * 0.95;
-        const maxHeight = containerRect.height * 0.95;
+        // --- ARREGLO PARA EL CELULAR ---
+        // Medimos el ancho de la pantalla y ajustamos el PDF al 95% de ese ancho.
+        const containerWidth = viewerContainer.clientWidth || window.innerWidth;
+        const maxWidth = containerWidth * 0.95; 
+        const scaleFit = maxWidth / baseViewport.width;
 
-        // Escalar para que quepa en pantalla (ajuste tipo "contain")
-        const scaleFit = Math.min(maxWidth / baseViewport.width, maxHeight / baseViewport.height);
+        // Calculamos el tamaño visual que tendrá en pantalla
         const finalWidth = baseViewport.width * scaleFit;
         const finalHeight = baseViewport.height * scaleFit;
 
-        // Configurar canvas con resolución interna alta pero tamaño visual ajustado
+        // Resolución interna del canvas (calidad del dibujo)
         pdfCanvas.width = Math.floor(baseViewport.width * dpr);
         pdfCanvas.height = Math.floor(baseViewport.height * dpr);
         pdfCanvas.style.width = finalWidth + 'px';
@@ -269,7 +269,8 @@
           state.rendering = false;
           if (state.pendingPage !== null) { const next = state.pendingPage; state.pendingPage = null; renderPage(next); }
           redrawAllAnnotations();
-          setTimeout(fitPageToScreen, 50); 
+          // Aplicar el zoom y centrado con un pequeño retraso para que el celular termine de ajustar la pantalla
+          setTimeout(fitPageToScreen, 100); 
         });
       });
       pageNumElem.textContent = num;
