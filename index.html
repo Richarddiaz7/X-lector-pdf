@@ -311,26 +311,26 @@
     }
 
     // ===== AJUSTE CORREGIDO PARA MÓVILES =====
-    function fitPageToScreen() {
+      function fitPageToScreen() {
       if (!pdfCanvas.width) return;
+      
       const rect = viewerContainer.getBoundingClientRect();
       const canvasW = parseFloat(pdfCanvas.style.width) || pdfCanvas.width;
       const canvasH = parseFloat(pdfCanvas.style.height) || pdfCanvas.height;
       
-      // Calcular zoom para que quepa con margen
-      const scaleX = (rect.width - 32) / canvasW;
-      const scaleY = (rect.height - 32) / canvasH;
-      const fit = Math.min(scaleX, scaleY);
+      // Calcular el zoom exacto para que la hoja quepa a lo ancho
+      const scaleX = (rect.width - 32) / canvasW; 
+      const fit = scaleX; // Forzamos a que se ajuste al ancho de la pantalla
       
       state.zoom = fit;
-      // Centrar perfectamente
+      
+      // Centrar la hoja horizontalmente y ponerla arriba
       state.panX = (rect.width - (canvasW * fit)) / 2;
-      state.panY = (rect.height - (canvasH * fit)) / 2;
+      state.panY = 20; // Margen superior de 20px
       
       applyTransform(); 
       showZoomBadge();
     }
-
     $('zoomIn').addEventListener('click', () => { const r = viewerContainer.getBoundingClientRect(); zoomAt(1.25, r.left + r.width/2, r.top + r.height/2); });
     $('zoomOut').addEventListener('click', () => { const r = viewerContainer.getBoundingClientRect(); zoomAt(0.8, r.left + r.width/2, r.top + r.height/2); });
     $('zoomReset').addEventListener('click', fitPageToScreen);
