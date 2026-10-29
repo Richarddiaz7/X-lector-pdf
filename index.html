@@ -224,7 +224,20 @@
     const drawTools = $('drawTools'), drawColor = $('drawColor'), drawSize = $('drawSize'), clearCanvasBtn = $('clearCanvas');
     const modeButtons = { view: $('modeView'), draw: $('modeDraw'), text: $('modeText') };
     const advancedMenu = $('advancedMenu'), menuBtn = $('menuBtn');
-
+    // Lógica para el botón de ocultar/mostrar miniaturas
+    const thumbnailBarWrapper = $('thumbnailBarWrapper');
+    const toggleThumbnailsBtn = $('toggleThumbnails');
+    
+    toggleThumbnailsBtn.addEventListener('click', () => {
+      const bar = $('thumbnailBar');
+      if (bar.classList.contains('hidden')) {
+        bar.classList.remove('hidden');
+        toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
+      } else {
+        bar.classList.add('hidden');
+        toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+      }
+    });
     pdfInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) loadPdfFile(file);
