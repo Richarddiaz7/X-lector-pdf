@@ -36,9 +36,7 @@
       width: 98%; 
       max-width: 1000px;
     }
-    #pdfWrapper.loaded { 
-      display: block; 
-    }
+    #pdfWrapper.loaded { display: block; }
 
     /* EL LIENZO DONDE SE DIBUJA EL PDF */
     .canvas-container { 
@@ -51,25 +49,11 @@
       overflow: hidden;
     }
     
-    /* CSS obliga a los canvas a medir el 100% de ancho */
-    #pdfCanvas { 
-      display: block; 
-      width: 100% !important; 
-      height: auto !important; 
-    }
-    
-    #drawCanvas { 
-      position: absolute; 
-      top: 0; 
-      left: 0; 
-      width: 100% !important; 
-      height: 100% !important; 
-      pointer-events: none; 
-      touch-action: none; 
-    }
+    #pdfCanvas { display: block; width: 100% !important; height: auto !important; }
+    #drawCanvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; pointer-events: none; touch-action: none; }
     #drawCanvas.active { pointer-events: auto; }
 
-    /* Elementos flotantes (texto e imágenes) */
+    /* Elementos flotantes */
     .floating-item { position: absolute; cursor: move; user-select: none; touch-action: none; z-index: 5; }
     .floating-item.selected { outline: 2px dashed #3b82f6; outline-offset: 2px; }
     .floating-text { padding: 2px 4px; min-width: 20px; white-space: pre-wrap; font-size: 16px; line-height: 1.2; border-radius: 3px; }
@@ -86,17 +70,6 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    
-    /* Ocultar scrollbar de miniaturas */
-    #thumbnailBar::-webkit-scrollbar { display: none; }
-
-    /* Asegura que la flechita siempre reciba el toque en celular */
-    #toggleThumbnails {
-      position: relative;
-      z-index: 50;
-      touch-action: manipulation;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col select-none">
@@ -106,11 +79,18 @@
       <i class="fa-solid fa-file-pdf text-red-500 text-xl"></i>
       <h1 class="font-bold text-sm sm:text-lg text-white">Súper PDF</h1>
     </div>
+    
     <div class="flex items-center space-x-1.5">
+      <!-- NUEVO BOTÓN DE MINIATURAS -->
+      <button id="openThumbnailsBtn" class="hidden bg-slate-700 hover:bg-slate-600 text-white p-2 rounded-lg transition" title="Ver páginas">
+        <i class="fa-solid fa-images"></i>
+      </button>
+
       <label for="pdfInput" class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition">
         <i class="fa-solid fa-folder-open"></i><span class="hidden sm:inline">Abrir</span>
       </label>
       <input type="file" id="pdfInput" accept="application/pdf" class="hidden">
+      
       <button id="downloadBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg flex items-center space-x-1.5 shadow transition opacity-50 cursor-not-allowed" disabled>
         <i class="fa-solid fa-download"></i><span class="hidden sm:inline">Guardar</span>
       </button>
@@ -160,18 +140,6 @@
     </div>
   </div>
 
-  <!-- TIRA DE MINIATURAS (OCULTA AL INICIO) -->
-  <div id="thumbnailBarWrapper" class="hidden w-full bg-slate-900 border-b border-slate-700 shrink-0">
-    <div class="flex items-center px-1">
-      <button id="toggleThumbnails" class="p-2 text-slate-400 hover:text-white" title="Mostrar/Ocultar miniaturas">
-        <i class="fa-solid fa-chevron-down"></i>
-      </button>
-      <div id="thumbnailBar" class="hidden flex-1 overflow-x-auto flex space-x-2 py-2" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
-        <!-- Aquí se generarán las miniaturas -->
-      </div>
-    </div>
-  </div>
-
   <main class="flex-1 relative bg-slate-950" id="viewerContainer">
     <div id="emptyState" class="absolute inset-0 flex items-center justify-center p-4 z-10">
       <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center max-w-md text-center">
@@ -190,6 +158,18 @@
     <div id="zoomBadge">100%</div>
   </main>
 
+  <!-- MODAL DE MINIATURAS (NUEVO) -->
+  <div id="thumbnailsModal" class="hidden fixed inset-0 bg-black/80 z-50 flex flex-col">
+    <div class="bg-slate-800 p-3 flex justify-between items-center border-b border-slate-700">
+      <h3 class="text-white font-bold"><i class="fa-solid fa-images mr-2"></i>Selecciona una página</h3>
+      <button id="closeThumbnailsBtn" class="text-slate-400 hover:text-white p-1"><i class="fa-solid fa-xmark text-2xl"></i></button>
+    </div>
+    <div id="thumbnailsGrid" class="flex-1 overflow-y-auto p-3 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+      <!-- Se llenará con JS -->
+    </div>
+  </div>
+
+  <!-- MODALES EXISTENTES -->
   <div id="voiceModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
     <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full shadow-2xl">
       <div class="flex items-center justify-between mb-4">
@@ -231,8 +211,7 @@
 
     const state = {
       rawPdfBytes: null, pdfDoc: null, pageNum: 1, pageCount: 0,
-      zoom: 1.0,
-      currentMode: 'view', rendering: false, pendingPage: null,
+      zoom: 1.0, currentMode: 'view', rendering: false, pendingPage: null,
       pageDrawings: {}, pageTexts: {}, pageImages: {}, pageRotations: {}, deletedPages: new Set(),
       selectedItem: null
     };
@@ -247,24 +226,18 @@
     const modeButtons = { view: $('modeView'), draw: $('modeDraw'), text: $('modeText') };
     const advancedMenu = $('advancedMenu'), menuBtn = $('menuBtn');
 
-    // Lógica para el botón de ocultar/mostrar miniaturas (Soporta PC y Celular)
-    const thumbnailBarWrapper = $('thumbnailBarWrapper');
-    const toggleThumbnailsBtn = $('toggleThumbnails');
-    
-    const handleToggleThumbnails = (e) => {
-      e.preventDefault();
-      const bar = $('thumbnailBar');
-      if (bar.classList.contains('hidden')) {
-        bar.classList.remove('hidden');
-        toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-up"></i>';
-      } else {
-        bar.classList.add('hidden');
-        toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
-      }
-    };
+    // NUEVO: Lógica de la ventana modal de miniaturas
+    const openThumbnailsBtn = $('openThumbnailsBtn');
+    const thumbnailsModal = $('thumbnailsModal');
+    const closeThumbnailsBtn = $('closeThumbnailsBtn');
+    const thumbnailsGrid = $('thumbnailsGrid');
 
-    toggleThumbnailsBtn.addEventListener('click', handleToggleThumbnails);
-    toggleThumbnailsBtn.addEventListener('touchstart', handleToggleThumbnails, { passive: false });
+    openThumbnailsBtn.addEventListener('click', () => {
+      thumbnailsModal.classList.remove('hidden');
+    });
+    closeThumbnailsBtn.addEventListener('click', () => {
+      thumbnailsModal.classList.add('hidden');
+    });
 
     pdfInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -293,25 +266,20 @@
         pdfWrapper.classList.add('loaded'); 
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        openThumbnailsBtn.classList.remove('hidden'); // Mostrar botón de miniaturas
         
         renderPage(state.pageNum);
         generateThumbnails(); 
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
-    // ===== GENERADOR DE MINIATURAS =====
+    // ===== GENERADOR DE MINIATURAS (Ahora llena la ventana modal) =====
     async function generateThumbnails() {
-      const wrapper = document.getElementById('thumbnailBarWrapper');
-      const bar = document.getElementById('thumbnailBar');
-      bar.innerHTML = ''; 
-      
-      wrapper.classList.remove('hidden'); 
-      bar.classList.add('hidden'); 
-      toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+      thumbnailsGrid.innerHTML = ''; 
 
       for (let i = 1; i <= state.pageCount; i++) {
         const page = await state.pdfDoc.getPage(i);
-        const viewport = page.getViewport({ scale: 0.2 }); 
+        const viewport = page.getViewport({ scale: 0.4 }); 
         
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
@@ -320,32 +288,28 @@
         const ctx = canvas.getContext('2d');
         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-        const img = document.createElement('img');
-        img.src = canvas.toDataURL('image/jpeg', 0.5);
-        img.className = 'h-16 w-auto rounded border-2 border-slate-600 cursor-pointer hover:border-blue-500 transition shrink-0';
-        img.title = 'Página ' + i;
+        const div = document.createElement('div');
+        div.className = 'flex flex-col items-center cursor-pointer group';
         
-        img.onclick = () => {
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/jpeg', 0.6);
+        img.className = 'w-full h-auto rounded border-2 border-slate-600 group-hover:border-blue-500 transition object-contain bg-white';
+        
+        const label = document.createElement('span');
+        label.className = 'text-xs text-slate-400 mt-1 group-hover:text-white transition';
+        label.textContent = 'Pág ' + i;
+        
+        div.appendChild(img);
+        div.appendChild(label);
+
+        // Al tocar la miniatura, ir a esa página y cerrar el modal
+        div.onclick = () => {
           state.pageNum = i;
           queueRenderPage(state.pageNum);
-          Array.from(bar.children).forEach(c => c.classList.remove('border-blue-500', 'opacity-100'));
-          Array.from(bar.children).forEach(c => c.classList.add('opacity-60'));
-          img.classList.remove('opacity-60');
-          img.classList.add('border-blue-500', 'opacity-100');
-          
-          // Ocultar la tira al seleccionar para ver mejor el PDF
-          bar.classList.add('hidden');
-          toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
+          thumbnailsModal.classList.add('hidden');
         };
 
-        bar.appendChild(img);
-        
-        if (i === state.pageNum) {
-          img.classList.remove('opacity-60');
-          img.classList.add('border-blue-500');
-        } else {
-          img.classList.add('opacity-60');
-        }
+        thumbnailsGrid.appendChild(div);
       }
     }
 
@@ -364,10 +328,7 @@
         drawCanvas.width = viewport.width;
         drawCanvas.height = viewport.height;
 
-        const renderContext = {
-          canvasContext: pdfCtx,
-          viewport: viewport
-        };
+        const renderContext = { canvasContext: pdfCtx, viewport: viewport };
 
         page.render(renderContext).promise.then(() => {
           state.rendering = false;
