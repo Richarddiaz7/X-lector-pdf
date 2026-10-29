@@ -89,6 +89,14 @@
     
     /* Ocultar scrollbar de miniaturas */
     #thumbnailBar::-webkit-scrollbar { display: none; }
+
+    /* Asegura que la flechita siempre reciba el toque en celular */
+    #toggleThumbnails {
+      position: relative;
+      z-index: 50;
+      touch-action: manipulation;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col select-none">
@@ -152,13 +160,13 @@
     </div>
   </div>
 
-  <!-- TIRA DE MINIATURAS (AHORA EMPUJA EL PDF HACIA ABAJO) -->
+  <!-- TIRA DE MINIATURAS (OCULTA AL INICIO) -->
   <div id="thumbnailBarWrapper" class="hidden w-full bg-slate-900 border-b border-slate-700 shrink-0">
     <div class="flex items-center px-1">
-      <button id="toggleThumbnails" class="p-2 text-slate-400 hover:text-white" title="Ocultar miniaturas">
-        <i class="fa-solid fa-chevron-up"></i>
+      <button id="toggleThumbnails" class="p-2 text-slate-400 hover:text-white" title="Mostrar/Ocultar miniaturas">
+        <i class="fa-solid fa-chevron-down"></i>
       </button>
-      <div id="thumbnailBar" class="flex-1 overflow-x-auto flex space-x-2 py-2" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+      <div id="thumbnailBar" class="hidden flex-1 overflow-x-auto flex space-x-2 py-2" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
         <!-- Aquí se generarán las miniaturas -->
       </div>
     </div>
@@ -239,11 +247,12 @@
     const modeButtons = { view: $('modeView'), draw: $('modeDraw'), text: $('modeText') };
     const advancedMenu = $('advancedMenu'), menuBtn = $('menuBtn');
 
-    // Lógica para el botón de ocultar/mostrar miniaturas
+    // Lógica para el botón de ocultar/mostrar miniaturas (Soporta PC y Celular)
     const thumbnailBarWrapper = $('thumbnailBarWrapper');
     const toggleThumbnailsBtn = $('toggleThumbnails');
     
-    toggleThumbnailsBtn.addEventListener('click', () => {
+    const handleToggleThumbnails = (e) => {
+      e.preventDefault();
       const bar = $('thumbnailBar');
       if (bar.classList.contains('hidden')) {
         bar.classList.remove('hidden');
@@ -252,7 +261,10 @@
         bar.classList.add('hidden');
         toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
       }
-    });
+    };
+
+    toggleThumbnailsBtn.addEventListener('click', handleToggleThumbnails);
+    toggleThumbnailsBtn.addEventListener('touchstart', handleToggleThumbnails, { passive: false });
 
     pdfInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -283,7 +295,7 @@
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         
         renderPage(state.pageNum);
-        generateThumbnails(); // Generar las miniaturas
+        generateThumbnails(); 
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
@@ -292,7 +304,10 @@
       const wrapper = document.getElementById('thumbnailBarWrapper');
       const bar = document.getElementById('thumbnailBar');
       bar.innerHTML = ''; 
+      
       wrapper.classList.remove('hidden'); 
+      bar.classList.add('hidden'); 
+      toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
 
       for (let i = 1; i <= state.pageCount; i++) {
         const page = await state.pdfDoc.getPage(i);
@@ -317,6 +332,10 @@
           Array.from(bar.children).forEach(c => c.classList.add('opacity-60'));
           img.classList.remove('opacity-60');
           img.classList.add('border-blue-500', 'opacity-100');
+          
+          // Ocultar la tira al seleccionar para ver mejor el PDF
+          bar.classList.add('hidden');
+          toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
         };
 
         bar.appendChild(img);
