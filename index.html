@@ -258,16 +258,16 @@
     }
 
     // FUNCIÓN DE RENDERIZADO SIMPLIFICADA AL MÁXIMO
-      // ===== GENERADOR DE MINIATURAS =====
+         // ===== GENERADOR DE MINIATURAS =====
     async function generateThumbnails() {
+      const wrapper = document.getElementById('thumbnailBarWrapper');
       const bar = document.getElementById('thumbnailBar');
       bar.innerHTML = ''; // Limpiar anteriores
-      bar.classList.remove('hidden'); // Mostrar la barra
+      wrapper.classList.remove('hidden'); // Mostrar la barra
 
       // Generamos las miniaturas de una en una para no saturar la memoria
       for (let i = 1; i <= state.pageCount; i++) {
         const page = await state.pdfDoc.getPage(i);
-        // Escala pequeña para las miniaturas
         const viewport = page.getViewport({ scale: 0.2 }); 
         
         const canvas = document.createElement('canvas');
@@ -279,7 +279,7 @@
 
         const img = document.createElement('img');
         img.src = canvas.toDataURL('image/jpeg', 0.5);
-        img.className = 'h-20 w-auto rounded border-2 border-slate-600 cursor-pointer hover:border-blue-500 transition shrink-0';
+        img.className = 'h-16 w-auto rounded border-2 border-slate-600 cursor-pointer hover:border-blue-500 transition shrink-0';
         img.title = 'Página ' + i;
         
         // Al tocar la miniatura, saltar a esa página
