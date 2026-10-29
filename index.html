@@ -150,6 +150,10 @@
   </div>
 
   <main class="flex-1 relative bg-slate-950" id="viewerContainer">
+        <!-- TIRA DE MINIATURAS PARA SELECCIONAR PÁGINA -->
+    <div id="thumbnailBar" class="hidden absolute top-2 left-0 right-0 z-20 overflow-x-auto flex space-x-2 px-2 py-2 bg-slate-900/90 backdrop-blur-sm" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+      <!-- Aquí se generarán las miniaturas con JavaScript -->
+    </div>
     <div id="emptyState" class="absolute inset-0 flex items-center justify-center p-4 z-10">
       <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center max-w-md text-center">
         <i class="fa-solid fa-file-circle-plus text-5xl text-blue-500 mb-4"></i>
@@ -252,10 +256,57 @@
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         renderPage(state.pageNum);
+                generateThumbnails(); // Generar las miniaturas
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
     // FUNCIÓN DE RENDERIZADO SIMPLIFICADA AL MÁXIMO
+      // ===== GENERADOR DE MINIATURAS =====
+    async function generateThumbnails() {
+      const bar = document.getElementById('thumbnailBar');
+      bar.innerHTML = ''; // Limpiar anteriores
+      bar.classList.remove('hidden'); // Mostrar la barra
+
+      // Generamos las miniaturas de una en una para no saturar la memoria
+      for (let i = 1; i <= state.pageCount; i++) {
+        const page = await state.pdfDoc.getPage(i);
+        // Escala pequeña para las miniaturas
+        const viewport = page.getViewport({ scale: 0.2 }); 
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/jpeg', 0.5);
+        img.className = 'h-20 w-auto rounded border-2 border-slate-600 cursor-pointer hover:border-blue-500 transition shrink-0';
+        img.title = 'Página ' + i;
+        
+        // Al tocar la miniatura, saltar a esa página
+        img.onclick = () => {
+          state.pageNum = i;
+          queueRenderPage(state.pageNum);
+          // Resaltar la miniatura seleccionada
+          Array.from(bar.children).forEach(c => c.classList.remove('border-blue-500', 'opacity-100'));
+          Array.from(bar.children).forEach(c => c.classList.add('opacity-60'));
+          img.classList.remove('opacity-60');
+          img.classList.add('border-blue-500', 'opacity-100');
+        };
+
+        bar.appendChild(img);
+        
+        // Si es la página actual, resaltarla
+        if (i === state.pageNum) {
+          img.classList.remove('opacity-60');
+          img.classList.add('border-blue-500');
+        } else {
+          img.classList.add('opacity-60');
+        }
+      }
+    }
     function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
