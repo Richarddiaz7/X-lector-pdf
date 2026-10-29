@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Súper Lector y Editor PDF</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e293b">
@@ -21,19 +21,19 @@
     /* VISOR PRINCIPAL CON SCROLL */
     #viewerContainer { 
       position: relative; 
-      overflow: auto; /* Permite desplazarse hacia abajo */
+      overflow: auto; 
       background: #020617;
       flex: 1; 
       width: 100%;
       height: 100%;
-      -webkit-overflow-scrolling: touch; /* Desplazamiento suave en iOS */
+      -webkit-overflow-scrolling: touch;
     }
 
     /* EL CONTENEDOR DEL PDF */
     #pdfWrapper { 
       display: none; 
       margin: 15px auto; 
-      width: 98%; /* Ocupa casi todo el ancho de la pantalla */
+      width: 98%; 
       max-width: 1000px;
     }
     #pdfWrapper.loaded { 
@@ -51,7 +51,7 @@
       overflow: hidden;
     }
     
-    /* EL TRUCO MAESTRO: CSS obliga a los canvas a medir el 100% de ancho */
+    /* CSS obliga a los canvas a medir el 100% de ancho */
     #pdfCanvas { 
       display: block; 
       width: 100% !important; 
@@ -86,6 +86,9 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    
+    /* Ocultar scrollbar de miniaturas */
+    #thumbnailBar::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col select-none">
@@ -149,16 +152,27 @@
     </div>
   </div>
 
+  <!-- TIRA DE MINIATURAS (AHORA EMPUJA EL PDF HACIA ABAJO) -->
+  <div id="thumbnailBarWrapper" class="hidden w-full bg-slate-900 border-b border-slate-700 shrink-0">
+    <div class="flex items-center px-1">
+      <button id="toggleThumbnails" class="p-2 text-slate-400 hover:text-white" title="Ocultar miniaturas">
+        <i class="fa-solid fa-chevron-up"></i>
+      </button>
+      <div id="thumbnailBar" class="flex-1 overflow-x-auto flex space-x-2 py-2" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+        <!-- Aquí se generarán las miniaturas -->
+      </div>
+    </div>
+  </div>
+
   <main class="flex-1 relative bg-slate-950" id="viewerContainer">
-          <!-- TIRA DE MINIATURAS PARA SELECCIONAR PÁGINA -->
-    <div id="thumbnailBarWrapper" class="hidden w-full bg-slate-900 border-b border-slate-700 shrink-0">
-      <div class="flex items-center px-1">
-        <button id="toggleThumbnails" class="p-2 text-slate-400 hover:text-white" title="Ocultar miniaturas">
-          <i class="fa-solid fa-chevron-up"></i>
-        </button>
-        <div id="thumbnailBar" class="flex-1 overflow-x-auto flex space-x-2 py-2" style="scrollbar-width: none; -webkit-overflow-scrolling: touch;">
-          <!-- Aquí se generarán las miniaturas con JavaScript -->
-        </div>
+    <div id="emptyState" class="absolute inset-0 flex items-center justify-center p-4 z-10">
+      <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col items-center max-w-md text-center">
+        <i class="fa-solid fa-file-circle-plus text-5xl text-blue-500 mb-4"></i>
+        <h2 class="text-xl font-bold text-white mb-2">Abre un archivo PDF</h2>
+        <p class="text-slate-400 text-sm mb-6">Selecciona un PDF desde tu almacenamiento o recíbelo desde WhatsApp.</p>
+        <label for="pdfInput" class="bg-blue-600 hover:bg-blue-500 text-white font-medium px-5 py-2.5 rounded-xl cursor-pointer shadow-lg transition flex items-center space-x-2">
+          <i class="fa-solid fa-folder-open"></i><span>Buscar PDF</span>
+        </label>
       </div>
     </div>
     
@@ -224,6 +238,7 @@
     const drawTools = $('drawTools'), drawColor = $('drawColor'), drawSize = $('drawSize'), clearCanvasBtn = $('clearCanvas');
     const modeButtons = { view: $('modeView'), draw: $('modeDraw'), text: $('modeText') };
     const advancedMenu = $('advancedMenu'), menuBtn = $('menuBtn');
+
     // Lógica para el botón de ocultar/mostrar miniaturas
     const thumbnailBarWrapper = $('thumbnailBarWrapper');
     const toggleThumbnailsBtn = $('toggleThumbnails');
@@ -238,6 +253,7 @@
         toggleThumbnailsBtn.innerHTML = '<i class="fa-solid fa-chevron-down"></i>';
       }
     });
+
     pdfInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) loadPdfFile(file);
@@ -265,20 +281,19 @@
         pdfWrapper.classList.add('loaded'); 
         downloadBtn.disabled = false;
         downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        
         renderPage(state.pageNum);
-                generateThumbnails(); // Generar las miniaturas
+        generateThumbnails(); // Generar las miniaturas
       }).catch(err => alert('Error al abrir PDF: ' + err.message));
     }
 
-    // FUNCIÓN DE RENDERIZADO SIMPLIFICADA AL MÁXIMO
-         // ===== GENERADOR DE MINIATURAS =====
+    // ===== GENERADOR DE MINIATURAS =====
     async function generateThumbnails() {
       const wrapper = document.getElementById('thumbnailBarWrapper');
       const bar = document.getElementById('thumbnailBar');
-      bar.innerHTML = ''; // Limpiar anteriores
-      wrapper.classList.remove('hidden'); // Mostrar la barra
+      bar.innerHTML = ''; 
+      wrapper.classList.remove('hidden'); 
 
-      // Generamos las miniaturas de una en una para no saturar la memoria
       for (let i = 1; i <= state.pageCount; i++) {
         const page = await state.pdfDoc.getPage(i);
         const viewport = page.getViewport({ scale: 0.2 }); 
@@ -295,11 +310,9 @@
         img.className = 'h-16 w-auto rounded border-2 border-slate-600 cursor-pointer hover:border-blue-500 transition shrink-0';
         img.title = 'Página ' + i;
         
-        // Al tocar la miniatura, saltar a esa página
         img.onclick = () => {
           state.pageNum = i;
           queueRenderPage(state.pageNum);
-          // Resaltar la miniatura seleccionada
           Array.from(bar.children).forEach(c => c.classList.remove('border-blue-500', 'opacity-100'));
           Array.from(bar.children).forEach(c => c.classList.add('opacity-60'));
           img.classList.remove('opacity-60');
@@ -308,7 +321,6 @@
 
         bar.appendChild(img);
         
-        // Si es la página actual, resaltarla
         if (i === state.pageNum) {
           img.classList.remove('opacity-60');
           img.classList.add('border-blue-500');
@@ -317,15 +329,16 @@
         }
       }
     }
+
+    // FUNCIÓN DE RENDERIZADO
     function renderPage(num) {
       if (!state.pdfDoc) return;
       state.rendering = true;
       
       state.pdfDoc.getPage(num).then((page) => {
         const rotation = state.pageRotations[num] || 0;
-        const viewport = page.getViewport({ scale: 2.0, rotation: rotation }); // Escala 2.0 da buena calidad
+        const viewport = page.getViewport({ scale: 2.0, rotation: rotation });
         
-        // El canvas interno tiene su tamaño natural
         pdfCanvas.width = viewport.width;
         pdfCanvas.height = viewport.height;
         
@@ -359,60 +372,38 @@
     $('prevPage').addEventListener('click', () => { if (state.pageNum > 1) { state.pageNum--; queueRenderPage(state.pageNum); } });
     $('nextPage').addEventListener('click', () => { if (state.pdfDoc && state.pageNum < state.pageCount) { state.pageNum++; queueRenderPage(state.pageNum); } });
 
-    // BOTONES DE ZOOM (Afectan el ancho visual de la hoja)
-    function updateZoom() {
-      pdfWrapper.style.width = (98 * state.zoom) + '%';
-      zoomLevelElem.textContent = Math.round(state.zoom * 100) + '%';
-      zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
-      showZoomBadge();
-    }
-    // ===== DESLIZAR CON EL DEDO (SWIPE) PARA CAMBIAR DE PÁGINA =====
-    let swipeStartX = 0;
-    let swipeStartY = 0;
-    let swipeTime = 0;
-
+    // ===== DESLIZAR CON EL DEDO (SWIPE) =====
+    let swipeStartX = 0, swipeStartY = 0, swipeTime = 0;
     viewerContainer.addEventListener('touchstart', (e) => {
-      // Solo en modo Leer, y solo si es un toque con un dedo
       if (state.currentMode !== 'view' || e.touches.length !== 1) return;
-      
       swipeStartX = e.touches[0].clientX;
       swipeStartY = e.touches[0].clientY;
       swipeTime = Date.now();
     }, { passive: true });
 
     viewerContainer.addEventListener('touchend', (e) => {
-      if (state.currentMode !== 'view') return;
-      
-      // Si fue un toque rápido, no hacer nada
-      if (!e.changedTouches || e.changedTouches.length === 0) return;
-      
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      const deltaX = touchEndX - swipeStartX;
-      const deltaY = touchEndY - swipeStartY;
+      if (state.currentMode !== 'view' || !e.changedTouches || e.changedTouches.length === 0) return;
+      const deltaX = e.changedTouches[0].clientX - swipeStartX;
+      const deltaY = e.changedTouches[0].clientY - swipeStartY;
       const timeDiff = Date.now() - swipeTime;
 
-      // Condiciones para considerar que fue un deslizamiento horizontal:
-      // - Se movió más de 70px a los lados
-      // - Se movió menos de 50px hacia arriba/abajo (para no interferir con el scroll)
-      // - Fue rápido (menos de 400ms)
       if (Math.abs(deltaX) > 70 && Math.abs(deltaY) < 50 && timeDiff < 400) {
-        
         if (deltaX > 0) {
-          // Deslizó hacia la derecha -> Página anterior
-          if (state.pageNum > 1) {
-            state.pageNum--;
-            queueRenderPage(state.pageNum);
-          }
+          if (state.pageNum > 1) { state.pageNum--; queueRenderPage(state.pageNum); }
         } else {
-          // Deslizó hacia la izquierda -> Página siguiente
-          if (state.pdfDoc && state.pageNum < state.pageCount) {
-            state.pageNum++;
-            queueRenderPage(state.pageNum);
-          }
+          if (state.pdfDoc && state.pageNum < state.pageCount) { state.pageNum++; queueRenderPage(state.pageNum); }
         }
       }
     }, { passive: true });
+
+    // BOTONES DE ZOOM
+    function updateZoom() {
+      pdfWrapper.style.width = (98 * state.zoom) + '%';
+      zoomLevelElem.textContent = Math.round(state.zoom * 100) + '%';
+      zoomBadge.textContent = Math.round(state.zoom * 100) + '%';
+      showZoomBadge();
+    }
+
     function showZoomBadge() {
       zoomBadge.classList.add('show');
       clearTimeout(showZoomBadge._t);
@@ -435,9 +426,8 @@
     modeButtons.draw.addEventListener('click', () => setMode('draw'));
     modeButtons.text.addEventListener('click', () => setMode('text'));
 
-    // COORDENADAS DEL LÁPIZ (Ajustadas para la escala CSS)
     let isDrawing = false, currentStroke = [];
-        function getCanvasCoords(e) {
+    function getCanvasCoords(e) {
       const rect = drawCanvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -445,14 +435,14 @@
       const scaleY = drawCanvas.height / rect.height;
       return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
     }
+
     function startDraw(e) {
       if (state.currentMode === 'text') { addTextAt(e); return; }
       if (state.currentMode !== 'draw') return;
       e.preventDefault(); isDrawing = true;
       const c = getCanvasCoords(e);
-      currentStroke = [{ x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) * 2 }]; // Grosor ajustado x2
+      currentStroke = [{ x: c.x, y: c.y, color: drawColor.value, size: parseInt(drawSize.value) * 2 }];
     }
-    
     function moveDraw(e) {
       if (!isDrawing || state.currentMode !== 'draw') return;
       e.preventDefault();
@@ -463,7 +453,6 @@
       const prev = currentStroke[currentStroke.length - 2];
       drawCtx.beginPath(); drawCtx.moveTo(prev.x, prev.y); drawCtx.lineTo(point.x, point.y); drawCtx.stroke();
     }
-    
     function endDraw() {
       if (!isDrawing) return; isDrawing = false;
       if (currentStroke.length > 0) { (state.pageDrawings[state.pageNum] = state.pageDrawings[state.pageNum] || []).push(currentStroke); currentStroke = []; }
@@ -471,7 +460,6 @@
     drawCanvas.addEventListener('mousedown', startDraw); drawCanvas.addEventListener('mousemove', moveDraw); drawCanvas.addEventListener('mouseup', endDraw); drawCanvas.addEventListener('mouseleave', endDraw);
     drawCanvas.addEventListener('touchstart', startDraw, { passive: false }); drawCanvas.addEventListener('touchmove', moveDraw, { passive: false }); drawCanvas.addEventListener('touchend', endDraw);
 
-    // TEXTOS E IMÁGENES
     let textCounter = 0, imgCounter = 0;
     function addTextAt(e) {
       const rect = drawCanvas.getBoundingClientRect();
@@ -633,7 +621,7 @@
     function startVoice() {
       if (!SpeechRecognition) return;
       recognition = new SpeechRecognition(); 
-      recognition.lang = 'es-VE'; // Español de Venezuela para mejor acento
+      recognition.lang = 'es-VE'; 
       recognition.continuous = true; 
       recognition.interimResults = true;
       
@@ -744,7 +732,7 @@
           const pNum = i + 1; const page = pages[i]; const { width, height } = page.getSize();
           const pdfPage = await state.pdfDoc.getPage(pNum);
           const rotation = state.pageRotations[pNum] || 0;
-          const vp = pdfPage.getViewport({ scale: 2.0, rotation }); // Misma escala usada al renderizar
+          const vp = pdfPage.getViewport({ scale: 2.0, rotation }); 
           
           const scaleX = width / vp.width;
           const scaleY = height / vp.height;
@@ -827,9 +815,8 @@
       convertModal.classList.add('hidden');
     });
 
-        document.querySelectorAll('[data-convert]').forEach(btn => {
+    document.querySelectorAll('[data-convert]').forEach(btn => {
       btn.addEventListener('click', () => {
-        // 1. Descargamos el PDF primero
         if (state.rawPdfBytes) {
           const blob = new Blob([state.rawPdfBytes], { type: 'application/pdf' });
           const link = document.createElement('a');
@@ -837,7 +824,6 @@
           link.download = 'documento_para_convertir.pdf';
           link.click();
         }
-        // 2. Abrimos la web para que el usuario lo suba
         setTimeout(() => {
           window.open('https://pdfto.tools', '_blank');
         }, 1000);
