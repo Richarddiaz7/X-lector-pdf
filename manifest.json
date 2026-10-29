@@ -1,7 +1,7 @@
 {
   "name": "Súper Lector y Editor PDF",
   "short_name": "Súper PDF",
-  "description": "Lee, edita, convierte y crea PDFs directamente en tu navegador. Recibe archivos desde WhatsApp.",
+  "description": "Lee, edita, convierte y crea PDFs directamente en tu navegador.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -34,13 +34,5 @@
         }
       ]
     }
-  },
-  "file_handlers": [
-    {
-      "action": "./index.html",
-      "accept": {
-        "application/pdf": [".pdf"]
-      }
-    }
-  ]
+  }
 }
